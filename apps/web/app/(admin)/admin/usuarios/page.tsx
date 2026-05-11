@@ -51,7 +51,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ChevronDown, Building2, Stethoscope, MoreHorizontal, Trash2 } from 'lucide-react'
+import { ChevronDown, Building2, Stethoscope, MoreHorizontal, Trash2, Pencil } from 'lucide-react'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import type { User, UserRole, UserStatus, ApiError } from '@plantoes-medicos/types'
 
@@ -425,6 +425,283 @@ function CreateProfessionalDialog({ open, onClose, onCreated }: {
   )
 }
 
+// ── Edit Hospital Dialog ───────────────────────────────────────────────────────
+
+const editHospitalSchema = z.object({
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  name: z.string().min(1, 'Obrigatório'),
+  cnpj: z.string().regex(/^\d{14}$/, 'CNPJ: 14 dígitos'),
+  phone: z.string().min(1, 'Obrigatório'),
+  street: z.string().min(1, 'Obrigatório'),
+  number: z.string().min(1, 'Obrigatório'),
+  complement: z.string().optional(),
+  neighborhood: z.string().min(1, 'Obrigatório'),
+  city: z.string().min(1, 'Obrigatório'),
+  state: z.string().length(2, 'UF: 2 letras'),
+  zipCode: z.string().regex(/^\d{8}$/, 'CEP: 8 dígitos'),
+})
+type EditHospitalValues = z.infer<typeof editHospitalSchema>
+
+interface FullHospitalUser {
+  id: string; email: string; role: string
+  hospitalProfile: {
+    name: string; cnpj: string; phone: string
+    street: string; number: string; complement?: string
+    neighborhood: string; city: string; state: string; zipCode: string
+  } | null
+}
+
+function EditHospitalDialog({ userId, onClose, onSaved }: {
+  userId: string; onClose: () => void; onSaved: () => void
+}) {
+  const [loadingData, setLoadingData] = useState(true)
+  const form = useForm<EditHospitalValues>({ resolver: zodResolver(editHospitalSchema) })
+
+  useEffect(() => {
+    apiClient.get<{ data: FullHospitalUser }>(`/admin/users/${userId}`)
+      .then(({ data: u }) => {
+        const p = u.hospitalProfile
+        if (!p) return
+        form.reset({
+          email: u.email,
+          name: p.name, cnpj: p.cnpj, phone: p.phone,
+          street: p.street, number: p.number, complement: p.complement ?? '',
+          neighborhood: p.neighborhood, city: p.city, state: p.state, zipCode: p.zipCode,
+        })
+      })
+      .catch(() => toast.error('Erro ao carregar dados'))
+      .finally(() => setLoadingData(false))
+  }, [userId, form])
+
+  const onSubmit = async (values: EditHospitalValues) => {
+    try {
+      const payload = { ...values, email: values.email || undefined }
+      await apiClient.patch(`/admin/users/${userId}/hospital`, payload)
+      toast.success('Hospital atualizado com sucesso')
+      onSaved(); onClose()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao atualizar')
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Hospital</DialogTitle>
+          <DialogDescription>Altere os dados do hospital. Deixe o email em branco para não alterá-lo.</DialogDescription>
+        </DialogHeader>
+        {loadingData ? (
+          <div className="space-y-3 py-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem className="sm:col-span-2"><FormLabel>Nome do hospital</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem><FormLabel>Email</FormLabel>
+                    <FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem><FormLabel>Telefone</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="cnpj" render={({ field }) => (
+                  <FormItem><FormLabel>CNPJ (14 dígitos)</FormLabel>
+                    <FormControl><Input maxLength={14} {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="zipCode" render={({ field }) => (
+                  <FormItem><FormLabel>CEP (8 dígitos)</FormLabel>
+                    <FormControl><Input maxLength={8} {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="street" render={({ field }) => (
+                  <FormItem className="sm:col-span-2"><FormLabel>Rua</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="number" render={({ field }) => (
+                  <FormItem><FormLabel>Número</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="complement" render={({ field }) => (
+                  <FormItem><FormLabel>Complemento</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="neighborhood" render={({ field }) => (
+                  <FormItem><FormLabel>Bairro</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="city" render={({ field }) => (
+                  <FormItem><FormLabel>Cidade</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="state" render={({ field }) => (
+                  <FormItem><FormLabel>UF</FormLabel>
+                    <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Salvando...' : 'Salvar alterações'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Edit Professional Dialog ───────────────────────────────────────────────────
+
+const editProfessionalSchema = z.object({
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  name: z.string().min(1, 'Obrigatório'),
+  cpf: z.string().regex(/^\d{11}$/, 'CPF: 11 dígitos'),
+  phone: z.string().min(1, 'Obrigatório'),
+  councilType: z.enum(['CRM', 'COREN']),
+  councilNumber: z.string().min(1, 'Obrigatório'),
+  councilState: z.string().length(2, 'UF: 2 letras'),
+  specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma'),
+})
+type EditProfessionalValues = z.infer<typeof editProfessionalSchema>
+
+interface FullProfessionalUser {
+  id: string; email: string; role: string
+  professionalProfile: {
+    name: string; cpf: string; phone: string
+    councilType: string; councilNumber: string; councilState: string
+    specialties: { specialtyId: string }[]
+  } | null
+}
+
+function EditProfessionalDialog({ userId, onClose, onSaved }: {
+  userId: string; onClose: () => void; onSaved: () => void
+}) {
+  const [loadingData, setLoadingData] = useState(true)
+  const [specialties, setSpecialties] = useState<Specialty[]>([])
+  const form = useForm<EditProfessionalValues>({ resolver: zodResolver(editProfessionalSchema) })
+
+  useEffect(() => {
+    Promise.all([
+      apiClient.get<{ data: FullProfessionalUser }>(`/admin/users/${userId}`),
+      apiClient.get<{ data: Specialty[] }>('/specialties'),
+    ]).then(([{ data: u }, { data: specs }]) => {
+      setSpecialties(specs)
+      const p = u.professionalProfile
+      if (!p) return
+      form.reset({
+        email: u.email,
+        name: p.name, cpf: p.cpf, phone: p.phone,
+        councilType: p.councilType as 'CRM' | 'COREN',
+        councilNumber: p.councilNumber, councilState: p.councilState,
+        specialtyIds: p.specialties.map((s) => s.specialtyId),
+      })
+    }).catch(() => toast.error('Erro ao carregar dados'))
+      .finally(() => setLoadingData(false))
+  }, [userId, form])
+
+  const onSubmit = async (values: EditProfessionalValues) => {
+    try {
+      const payload = { ...values, email: values.email || undefined }
+      await apiClient.patch(`/admin/users/${userId}/professional`, payload)
+      toast.success('Profissional atualizado com sucesso')
+      onSaved(); onClose()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao atualizar')
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Profissional</DialogTitle>
+          <DialogDescription>Altere os dados do profissional.</DialogDescription>
+        </DialogHeader>
+        {loadingData ? (
+          <div className="space-y-3 py-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem className="sm:col-span-2"><FormLabel>Nome completo</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem><FormLabel>Email</FormLabel>
+                    <FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem><FormLabel>Telefone</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="cpf" render={({ field }) => (
+                  <FormItem><FormLabel>CPF (11 dígitos)</FormLabel>
+                    <FormControl><Input maxLength={11} {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="councilType" render={({ field }) => (
+                  <FormItem><FormLabel>Conselho</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="CRM">CRM</SelectItem>
+                        <SelectItem value="COREN">COREN</SelectItem>
+                      </SelectContent>
+                    </Select><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="councilNumber" render={({ field }) => (
+                  <FormItem><FormLabel>Número do conselho</FormLabel>
+                    <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="councilState" render={({ field }) => (
+                  <FormItem className="sm:col-span-2"><FormLabel>Estado do conselho (UF)</FormLabel>
+                    <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <FormField control={form.control} name="specialtyIds" render={() => (
+                <FormItem>
+                  <FormLabel>Especialidades</FormLabel>
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 max-h-48 overflow-y-auto">
+                    {specialties.map((s) => (
+                      <FormField key={s.id} control={form.control} name="specialtyIds" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(s.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) field.onChange([...(field.value ?? []), s.id])
+                                else field.onChange(field.value?.filter((v) => v !== s.id))
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal text-sm cursor-pointer">{s.name}</FormLabel>
+                        </FormItem>
+                      )} />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Salvando...' : 'Salvar alterações'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function AdminUsuariosPage() {
@@ -438,6 +715,7 @@ export default function AdminUsuariosPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [createHospitalOpen, setCreateHospitalOpen] = useState(false)
   const [createProfessionalOpen, setCreateProfessionalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<{ id: string; role: UserRole } | null>(null)
 
   const { users, totalPages, loading, reload } = useAdminUsers({
     role: roleFilter,
@@ -590,6 +868,13 @@ export default function AdminUsuariosPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {user.role !== 'ADMIN' && (
+                          <DropdownMenuItem
+                            onClick={() => setEditingUser({ id: user.id, role: user.role })}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                        )}
                         {user.status === 'ACTIVE' ? (
                           <DropdownMenuItem
                             onClick={() => setConfirmDialog({ user, action: 'deactivate' })}
@@ -690,6 +975,22 @@ export default function AdminUsuariosPage() {
         onClose={() => setCreateProfessionalOpen(false)}
         onCreated={() => void reload()}
       />
+
+      {editingUser?.role === 'HOSPITAL' && (
+        <EditHospitalDialog
+          userId={editingUser.id}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => void reload()}
+        />
+      )}
+
+      {editingUser?.role === 'PROFESSIONAL' && (
+        <EditProfessionalDialog
+          userId={editingUser.id}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => void reload()}
+        />
+      )}
     </div>
   )
 }

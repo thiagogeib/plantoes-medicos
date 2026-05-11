@@ -39,6 +39,34 @@ export const adminCreateProfessionalSchema = z.object({
 export type AdminCreateHospitalInput = z.infer<typeof adminCreateHospitalSchema>
 export type AdminCreateProfessionalInput = z.infer<typeof adminCreateProfessionalSchema>
 
+export const adminUpdateHospitalSchema = z.object({
+  email: z.string().email("Email inválido").optional(),
+  name: z.string().min(1).optional(),
+  cnpj: z.string().regex(/^\d{14}$/, "CNPJ deve ter 14 dígitos").optional(),
+  phone: z.string().min(1).optional(),
+  street: z.string().min(1).optional(),
+  number: z.string().min(1).optional(),
+  complement: z.string().optional(),
+  neighborhood: z.string().min(1).optional(),
+  city: z.string().min(1).optional(),
+  state: z.string().length(2, "Estado deve ter 2 letras").optional(),
+  zipCode: z.string().regex(/^\d{8}$/, "CEP deve ter 8 dígitos").optional(),
+})
+
+export const adminUpdateProfessionalSchema = z.object({
+  email: z.string().email("Email inválido").optional(),
+  name: z.string().min(1).optional(),
+  cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos").optional(),
+  phone: z.string().min(1).optional(),
+  councilType: z.enum(["CRM", "COREN"]).optional(),
+  councilNumber: z.string().min(1).optional(),
+  councilState: z.string().length(2).optional(),
+  specialtyIds: z.array(z.string()).min(1).optional(),
+})
+
+export type AdminUpdateHospitalInput = z.infer<typeof adminUpdateHospitalSchema>
+export type AdminUpdateProfessionalInput = z.infer<typeof adminUpdateProfessionalSchema>
+
 export const listUsersSchema = z.object({
   role: z.nativeEnum(UserRole).optional(),
   status: z.nativeEnum(UserStatus).optional(),

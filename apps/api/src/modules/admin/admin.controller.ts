@@ -6,6 +6,8 @@ import {
   adminShiftFiltersSchema,
   adminCreateHospitalSchema,
   adminCreateProfessionalSchema,
+  adminUpdateHospitalSchema,
+  adminUpdateProfessionalSchema,
 } from "./admin.dto"
 
 export class AdminController {
@@ -41,6 +43,26 @@ export class AdminController {
     try {
       const { status } = updateUserStatusSchema.parse(req.body)
       const user = await AdminService.updateUserStatus(req.params.id, status)
+      res.json({ data: user })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async updateHospital(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = adminUpdateHospitalSchema.parse(req.body)
+      const user = await AdminService.updateHospital(req.params.id, data)
+      res.json({ data: user })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async updateProfessional(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = adminUpdateProfessionalSchema.parse(req.body)
+      const user = await AdminService.updateProfessional(req.params.id, data)
       res.json({ data: user })
     } catch (error) {
       next(error)

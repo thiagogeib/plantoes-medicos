@@ -3,7 +3,12 @@ import { UserRole, UserStatus, Prisma } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, AppError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
-import { AdminCreateHospitalInput, AdminCreateProfessionalInput } from "./admin.dto"
+import {
+  AdminCreateHospitalInput,
+  AdminCreateProfessionalInput,
+  AdminUpdateHospitalInput,
+  AdminUpdateProfessionalInput,
+} from "./admin.dto"
 
 const ARGON2_OPTIONS = {
   type: argon2.argon2id,
@@ -111,13 +116,84 @@ export class AdminService {
         createdAt: true,
         updatedAt: true,
         hospitalProfile: true,
-        professionalProfile: true,
+        professionalProfile: {
+          include: {
+            specialties: { select: { specialtyId: true } },
+          },
+        },
       },
     })
 
     if (!user) throw new NotFoundError("Usuário não encontrado")
 
     return user
+  }
+
+  static async updateHospital(userId: string, data: AdminUpdateHospitalInput) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { hospitalProfile: true },
+    })
+    if (!user) throw new NotFoundError("Usuário não encontrado")
+    if (user.role !== UserRole.HOSPITAL) throw new AppError("Usuário não é um hospital", 400, "BAD_REQUEST")
+
+    try {
+      const { email, ...profileData } = data
+      return await prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(email ? { email } : {}),
+          hospitalProfile: { update: profileData },
+        },
+        select: {
+          id: true, email: true, role: true, status: true, updatedAt: true,
+          hospitalProfile: true,
+        },
+      })
+    } catch (err) {
+      handlePrismaConflict(err)
+    }
+  }
+
+  static async updateProfessional(userId: string, data: AdminUpdateProfessionalInput) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { professionalProfile: true },
+    })
+    if (!user) throw new NotFoundError("Usuário não encontrado")
+    if (user.role !== UserRole.PROFESSIONAL) throw new AppError("Usuário não é um profissional", 400, "BAD_REQUEST")
+
+    try {
+      const { email, specialtyIds, ...profileData } = data
+
+      const specialtiesUpdate = specialtyIds
+        ? {
+            deleteMany: {},
+            create: specialtyIds.map((specialtyId) => ({ specialtyId })),
+          }
+        : undefined
+
+      return await prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(email ? { email } : {}),
+          professionalProfile: {
+            update: {
+              ...profileData,
+              ...(specialtiesUpdate ? { specialties: specialtiesUpdate } : {}),
+            },
+          },
+        },
+        select: {
+          id: true, email: true, role: true, status: true, updatedAt: true,
+          professionalProfile: {
+            include: { specialties: { select: { specialtyId: true } } },
+          },
+        },
+      })
+    } catch (err) {
+      handlePrismaConflict(err)
+    }
   }
 
   static async updateUserStatus(id: string, status: UserStatus) {
