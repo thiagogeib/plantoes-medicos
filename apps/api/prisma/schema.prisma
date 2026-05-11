@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  HOSPITAL
+  PROFESSIONAL
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_VERIFICATION
+}
+
+enum ShiftStatus {
+  OPEN
+  FILLED
+  CANCELLED
+  COMPLETED
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CouncilType {
+  CRM
+  COREN
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  hospitalProfile     HospitalProfile?
+  professionalProfile ProfessionalProfile?
+  refreshTokens       RefreshToken[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model HospitalProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  cnpj         String   @unique
+  phone        String
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String
+  zipCode      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  shifts Shift[]
+
+  @@index([cnpj])
+  @@index([city])
+  @@index([state])
+}
+
+model ProfessionalProfile {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  cpf           String      @unique
+  phone         String
+  councilType   CouncilType
+  councilNumber String
+  councilState  String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  specialties  ProfessionalSpecialty[]
+  applications Application[]
+
+  @@index([cpf])
+  @@index([councilNumber])
+}
+
+model Specialty {
+  id   String @id @default(cuid())
+  name String @unique
+
+  shifts        Shift[]
+  professionals ProfessionalSpecialty[]
+}
+
+model ProfessionalSpecialty {
+  professionalId String
+  specialtyId    String
+  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  specialty      Specialty           @relation(fields: [specialtyId], references: [id])
+
+  @@id([professionalId, specialtyId])
+}
+
+model Shift {
+  id          String      @id @default(cuid())
+  hospitalId  String
+  hospital    HospitalProfile @relation(fields: [hospitalId], references: [id])
+  specialtyId String
+  specialty   Specialty   @relation(fields: [specialtyId], references: [id])
+  title       String
+  description String
+  date        DateTime    @db.Date
+  startTime   String
+  endTime     String
+  location    String
+  slots       Int         @default(1)
+  filledSlots Int         @default(0)
+  status      ShiftStatus @default(OPEN)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  applications Application[]
+
+  @@index([hospitalId])
+  @@index([specialtyId])
+  @@index([date])
+  @@index([status])
+  @@index([status, date])
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  shiftId        String
+  shift          Shift             @relation(fields: [shiftId], references: [id])
+  professionalId String
+  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  status         ApplicationStatus @default(PENDING)
+  message        String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([shiftId, professionalId])
+  @@index([shiftId])
+  @@index([professionalId])
+  @@index([status])
+}

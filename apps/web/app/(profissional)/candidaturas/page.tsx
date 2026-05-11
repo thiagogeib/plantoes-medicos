@@ -1,0 +1,105 @@
+'use client'
+
+import { useState } from 'react'
+import { useMyApplications } from '@/hooks/use-my-applications'
+import { CandidaturaCard } from '@/components/shared/candidatura/CandidaturaCard'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { ApplicationStatus } from '@plantoes-medicos/types'
+
+const STATUS_OPTIONS: { value: ApplicationStatus | ''; label: string }[] = [
+  { value: '', label: 'Todos os status' },
+  { value: 'PENDING', label: 'Pendente' },
+  { value: 'ACCEPTED', label: 'Aceito' },
+  { value: 'REJECTED', label: 'Recusado' },
+  { value: 'WITHDRAWN', label: 'Retirado' },
+]
+
+export default function CandidaturasPage() {
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('')
+  const [page, setPage] = useState(1)
+
+  const { applications, totalPages, loading } = useMyApplications({
+    status: statusFilter,
+    page,
+  })
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Minhas Candidaturas</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Acompanhe o status das suas candidaturas</p>
+      </div>
+
+      <div>
+        <Select
+          value={statusFilter}
+          onValueChange={(val) => {
+            setStatusFilter(val === '__all__' ? '' : (val as ApplicationStatus))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value || '__all__'} value={opt.value || '__all__'}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+      ) : applications.length === 0 ? (
+        <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-xl">
+          Nenhuma candidatura encontrada.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {applications.map((app) => (
+            <CandidaturaCard key={app.id} application={app} variant="profissional" />
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || loading}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-slate-500">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages || loading}
+          >
+            Próxima
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}

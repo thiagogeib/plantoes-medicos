@@ -1,0 +1,232 @@
+import { ApplicationStatus, ShiftStatus } from "@prisma/client"
+import { prisma } from "../../prisma/client"
+import {
+  NotFoundError,
+  ForbiddenError,
+  ConflictError,
+  AppError,
+} from "../../shared/errors/AppError"
+import { paginate, paginationMeta } from "../../shared/helpers/pagination"
+import type { CreateApplicationInput, UpdateStatusInput, ApplicationFilters } from "./application.dto"
+
+export class ApplicationService {
+  static async listShiftApplications(
+    shiftId: string,
+    requestingUserId: string,
+    role: string
+  ) {
+    const shift = await prisma.shift.findUnique({
+      where: { id: shiftId },
+      include: { hospital: { select: { userId: true } } },
+    })
+    if (!shift) throw new NotFoundError("Plantão não encontrado")
+
+    if (role !== "ADMIN" && shift.hospital.userId !== requestingUserId) {
+      throw new ForbiddenError("Sem permissão para ver candidaturas deste plantão")
+    }
+
+    return prisma.application.findMany({
+      where: { shiftId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        professional: {
+          select: {
+            id: true,
+            name: true,
+            councilType: true,
+            councilNumber: true,
+            councilState: true,
+            phone: true,
+          },
+        },
+      },
+    })
+  }
+
+  static async applyToShift(
+    shiftId: string,
+    professionalId: string,
+    input: CreateApplicationInput
+  ) {
+    const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
+    if (!shift) throw new NotFoundError("Plantão não encontrado")
+
+    if (shift.status === ShiftStatus.FILLED) {
+      throw new ConflictError("Plantão já está preenchido")
+    }
+    if (shift.status === ShiftStatus.CANCELLED) {
+      throw new ConflictError("Plantão está cancelado")
+    }
+    if (shift.status === ShiftStatus.COMPLETED) {
+      throw new ConflictError("Plantão já foi concluído")
+    }
+    if (shift.status !== ShiftStatus.OPEN) {
+      throw new ConflictError("Plantão não está disponível para candidaturas")
+    }
+
+    const existing = await prisma.application.findUnique({
+      where: { shiftId_professionalId: { shiftId, professionalId } },
+    })
+    if (existing) throw new ConflictError("Você já se candidatou a este plantão")
+
+    return prisma.application.create({
+      data: {
+        shiftId,
+        professionalId,
+        message: input.message,
+      },
+      include: {
+        shift: {
+          select: { id: true, title: true, date: true, startTime: true, endTime: true },
+        },
+      },
+    })
+  }
+
+  static async listMyApplications(professionalId: string, filters: ApplicationFilters) {
+    const { status, page, limit } = filters
+    const { skip, take } = paginate(page, limit)
+
+    const where: Record<string, unknown> = { professionalId }
+    if (status) where.status = status
+
+    const [data, total] = await Promise.all([
+      prisma.application.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          shift: {
+            include: {
+              specialty: true,
+              hospital: {
+                select: { id: true, name: true, city: true, state: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.application.count({ where }),
+    ])
+
+    return { data, pagination: paginationMeta(total, page, limit) }
+  }
+
+  static async getApplication(id: string, requestingUserId: string, role: string) {
+    const application = await prisma.application.findUnique({
+      where: { id },
+      include: {
+        shift: {
+          include: {
+            hospital: { select: { id: true, name: true, userId: true } },
+            specialty: true,
+          },
+        },
+        professional: {
+          select: { id: true, name: true, userId: true, councilType: true, councilNumber: true },
+        },
+      },
+    })
+
+    if (!application) throw new NotFoundError("Candidatura não encontrada")
+
+    if (role === "ADMIN") return application
+
+    const isHospitalOwner = application.shift.hospital.userId === requestingUserId
+    const isProfessionalOwner = application.professional.userId === requestingUserId
+
+    if (!isHospitalOwner && !isProfessionalOwner) {
+      throw new ForbiddenError("Sem permissão para acessar esta candidatura")
+    }
+
+    return application
+  }
+
+  static async updateApplicationStatus(
+    id: string,
+    hospitalUserId: string,
+    input: UpdateStatusInput
+  ) {
+    const application = await prisma.application.findUnique({
+      where: { id },
+      include: {
+        shift: {
+          include: { hospital: { select: { userId: true } } },
+        },
+      },
+    })
+
+    if (!application) throw new NotFoundError("Candidatura não encontrada")
+
+    if (application.shift.hospital.userId !== hospitalUserId) {
+      throw new ForbiddenError("Sem permissão para atualizar esta candidatura")
+    }
+
+    if (application.status !== ApplicationStatus.PENDING) {
+      throw new AppError(
+        "Apenas candidaturas pendentes podem ter o status alterado",
+        422,
+        "UNPROCESSABLE"
+      )
+    }
+
+    const newStatus = input.status as ApplicationStatus
+
+    if (newStatus === ApplicationStatus.ACCEPTED) {
+      return prisma.$transaction(async (tx) => {
+        const updatedApplication = await tx.application.update({
+          where: { id },
+          data: { status: ApplicationStatus.ACCEPTED },
+        })
+
+        const updatedShift = await tx.shift.update({
+          where: { id: application.shiftId },
+          data: { filledSlots: { increment: 1 } },
+        })
+
+        if (updatedShift.filledSlots >= updatedShift.slots) {
+          await tx.shift.update({
+            where: { id: application.shiftId },
+            data: { status: ShiftStatus.FILLED },
+          })
+        }
+
+        return updatedApplication
+      })
+    }
+
+    return prisma.application.update({
+      where: { id },
+      data: { status: newStatus },
+    })
+  }
+
+  static async withdrawApplication(id: string, professionalUserId: string) {
+    const application = await prisma.application.findUnique({
+      where: { id },
+      include: {
+        professional: { select: { userId: true } },
+      },
+    })
+
+    if (!application) throw new NotFoundError("Candidatura não encontrada")
+
+    if (application.professional.userId !== professionalUserId) {
+      throw new ForbiddenError("Sem permissão para cancelar esta candidatura")
+    }
+
+    if (application.status !== ApplicationStatus.PENDING) {
+      throw new AppError(
+        "Apenas candidaturas pendentes podem ser canceladas",
+        422,
+        "UNPROCESSABLE"
+      )
+    }
+
+    return prisma.application.update({
+      where: { id },
+      data: { status: ApplicationStatus.WITHDRAWN },
+    })
+  }
+}
