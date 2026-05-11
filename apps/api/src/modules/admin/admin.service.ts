@@ -140,6 +140,15 @@ export class AdminService {
     })
   }
 
+  static async deleteUser(id: string) {
+    const user = await prisma.user.findUnique({ where: { id } })
+    if (!user) throw new NotFoundError("Usuário não encontrado")
+    if (user.role === UserRole.ADMIN) {
+      throw new AppError("Não é possível excluir um administrador", 400, "BAD_REQUEST")
+    }
+    await prisma.user.delete({ where: { id } })
+  }
+
   static async createHospital(data: AdminCreateHospitalInput) {
     const passwordHash = await argon2.hash(data.password, ARGON2_OPTIONS)
     try {

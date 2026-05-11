@@ -51,7 +51,8 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ChevronDown, Building2, Stethoscope } from 'lucide-react'
+import { ChevronDown, Building2, Stethoscope, MoreHorizontal, Trash2 } from 'lucide-react'
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import type { User, UserRole, UserStatus, ApiError } from '@plantoes-medicos/types'
 
 const ROLE_OPTIONS: { value: UserRole | ''; label: string }[] = [
@@ -432,7 +433,7 @@ export default function AdminUsuariosPage() {
   const [page, setPage] = useState(1)
   const [confirmDialog, setConfirmDialog] = useState<{
     user: User
-    action: 'activate' | 'deactivate'
+    action: 'activate' | 'deactivate' | 'delete'
   } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [createHospitalOpen, setCreateHospitalOpen] = useState(false)
@@ -444,25 +445,30 @@ export default function AdminUsuariosPage() {
     page,
   })
 
-  const handleToggleStatus = async () => {
+  const handleConfirmAction = async () => {
     if (!confirmDialog) return
     setActionLoading(true)
     try {
-      const newStatus: UserStatus =
-        confirmDialog.action === 'activate' ? 'ACTIVE' : 'INACTIVE'
-      await apiClient.patch(`/admin/users/${confirmDialog.user.id}/status`, {
-        status: newStatus,
-      })
-      toast.success(
-        confirmDialog.action === 'activate'
-          ? 'Usuário ativado com sucesso'
-          : 'Usuário desativado com sucesso'
-      )
+      if (confirmDialog.action === 'delete') {
+        await apiClient.del(`/admin/users/${confirmDialog.user.id}`)
+        toast.success('Usuário excluído com sucesso')
+      } else {
+        const newStatus: UserStatus =
+          confirmDialog.action === 'activate' ? 'ACTIVE' : 'INACTIVE'
+        await apiClient.patch(`/admin/users/${confirmDialog.user.id}/status`, {
+          status: newStatus,
+        })
+        toast.success(
+          confirmDialog.action === 'activate'
+            ? 'Usuário ativado com sucesso'
+            : 'Usuário desativado com sucesso'
+        )
+      }
       setConfirmDialog(null)
       void reload()
     } catch (err) {
       const error = err as ApiError
-      toast.error(error?.error?.message ?? 'Erro ao alterar status do usuário')
+      toast.error(error?.error?.message ?? 'Erro ao processar ação')
     } finally {
       setActionLoading(false)
     }
@@ -577,23 +583,35 @@ export default function AdminUsuariosPage() {
                     {format(parseISO(user.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
                   </TableCell>
                   <TableCell className="text-right">
-                    {user.status === 'ACTIVE' ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setConfirmDialog({ user, action: 'deactivate' })}
-                      >
-                        Desativar
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setConfirmDialog({ user, action: 'activate' })}
-                      >
-                        Ativar
-                      </Button>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {user.status === 'ACTIVE' ? (
+                          <DropdownMenuItem
+                            onClick={() => setConfirmDialog({ user, action: 'deactivate' })}
+                          >
+                            Desativar
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() => setConfirmDialog({ user, action: 'activate' })}
+                          >
+                            Ativar
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          onClick={() => setConfirmDialog({ user, action: 'delete' })}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -630,12 +648,17 @@ export default function AdminUsuariosPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {confirmDialog?.action === 'activate' ? 'Ativar usuário' : 'Desativar usuário'}
+              {confirmDialog?.action === 'activate' && 'Ativar usuário'}
+              {confirmDialog?.action === 'deactivate' && 'Desativar usuário'}
+              {confirmDialog?.action === 'delete' && 'Excluir usuário'}
             </DialogTitle>
             <DialogDescription>
-              {confirmDialog?.action === 'activate'
-                ? `Deseja ativar o usuário ${confirmDialog?.user.email}?`
-                : `Deseja desativar o usuário ${confirmDialog?.user.email}? Ele não conseguirá mais acessar a plataforma.`}
+              {confirmDialog?.action === 'activate' &&
+                `Deseja ativar o usuário ${confirmDialog?.user.email}?`}
+              {confirmDialog?.action === 'deactivate' &&
+                `Deseja desativar ${confirmDialog?.user.email}? Ele não poderá mais acessar a plataforma.`}
+              {confirmDialog?.action === 'delete' &&
+                `Isso vai excluir permanentemente a conta de ${confirmDialog?.user.email} e todos os dados associados. Essa ação não pode ser desfeita.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -643,15 +666,14 @@ export default function AdminUsuariosPage() {
               Cancelar
             </Button>
             <Button
-              variant={confirmDialog?.action === 'deactivate' ? 'destructive' : 'default'}
-              onClick={handleToggleStatus}
+              variant={confirmDialog?.action === 'activate' ? 'default' : 'destructive'}
+              onClick={handleConfirmAction}
               disabled={actionLoading}
             >
-              {actionLoading
-                ? 'Processando...'
-                : confirmDialog?.action === 'activate'
-                  ? 'Confirmar ativação'
-                  : 'Confirmar desativação'}
+              {actionLoading ? 'Processando...' :
+                confirmDialog?.action === 'activate' ? 'Confirmar ativação' :
+                confirmDialog?.action === 'deactivate' ? 'Confirmar desativação' :
+                'Excluir permanentemente'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -47,6 +47,15 @@ export class AdminController {
     }
   }
 
+  static async deleteUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      await AdminService.deleteUser(req.params.id)
+      res.status(204).send()
+    } catch (error) {
+      next(error)
+    }
+  }
+
   static async createHospital(req: Request, res: Response, next: NextFunction) {
     try {
       const data = adminCreateHospitalSchema.parse(req.body)

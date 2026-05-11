@@ -8,6 +8,7 @@ import { shiftRouter } from "./modules/shifts/shift.routes"
 import { hospitalRouter } from "./modules/shifts/hospital.routes"
 import { applicationRouter } from "./modules/applications/application.routes"
 import { adminRouter } from "./modules/admin/admin.routes"
+import { publicRouter } from "./modules/public/public.routes"
 import { errorHandler } from "./shared/errors/errorHandler"
 import { healthHandler } from "./health"
 
@@ -41,6 +42,7 @@ app.use("/api/v1/shifts", shiftRouter)
 app.use("/api/v1/hospitals", hospitalRouter)
 app.use("/api/v1/applications", applicationRouter)
 app.use("/api/v1/admin", adminRouter)
+app.use("/api/v1/public", publicRouter)
 
 app.use(errorHandler)
 
