@@ -31,10 +31,8 @@ export async function sendWhatsAppText(phone: string, message: string): Promise<
     return
   }
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Client-Token": CLIENT_TOKEN ?? "",
-  }
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (CLIENT_TOKEN) headers["Client-Token"] = CLIENT_TOKEN
 
   const res = await fetch(
     `${ZAPI_BASE}/${INSTANCE_ID}/token/${TOKEN}/send-text`,
