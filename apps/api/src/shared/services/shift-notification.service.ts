@@ -47,30 +47,33 @@ function buildMessage(shift: ShiftData): string {
 }
 
 export async function notifyProfessionalsAboutNewShift(shift: ShiftData): Promise<void> {
+  console.info(`[ShiftNotification] Iniciando notificações para plantão ${shift.id} — especialidade ${shift.specialty.name} (${shift.specialtyId})`)
   try {
-    // busca todos os profissionais ativos com essa especialidade
     const professionals = await prisma.professionalProfile.findMany({
       where: {
         specialties: { some: { specialtyId: shift.specialtyId } },
         user: { status: "ACTIVE" },
       },
-      select: { phone: true },
+      select: { phone: true, userId: true },
     })
 
-    if (professionals.length === 0) return
+    console.info(`[ShiftNotification] ${professionals.length} profissional(is) encontrado(s) para notificar`)
+
+    if (professionals.length === 0) {
+      console.warn(`[ShiftNotification] Nenhum profissional ativo com especialidade ${shift.specialtyId} — nenhuma mensagem enviada`)
+      return
+    }
 
     const message = buildMessage(shift)
 
-    // envia em sequência com pequeno delay para não sobrecarregar a API
     for (const prof of professionals) {
+      console.info(`[ShiftNotification] Enviando para usuário ${prof.userId} — phone: ${prof.phone}`)
       await sendWhatsAppText(prof.phone, message)
-      // pausa de 500ms entre envios
       await new Promise((r) => setTimeout(r, 500))
     }
 
-    console.info(`[ShiftNotification] Notificações enviadas para ${professionals.length} profissional(is) — plantão ${shift.id}`)
+    console.info(`[ShiftNotification] Concluído — ${professionals.length} mensagem(ns) enviada(s) para plantão ${shift.id}`)
   } catch (err) {
-    // nunca propaga erro — notificação é best-effort
     console.error("[ShiftNotification] Erro ao enviar notificações:", err)
   }
 }

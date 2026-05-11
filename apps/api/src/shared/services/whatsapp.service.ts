@@ -31,20 +31,28 @@ export async function sendWhatsAppText(phone: string, message: string): Promise<
     return
   }
 
+  console.info(`[WhatsApp] Enviando para ${normalized} — Client-Token: ${CLIENT_TOKEN ? "configurado" : "AUSENTE"}`)
+
   const headers: Record<string, string> = { "Content-Type": "application/json" }
   if (CLIENT_TOKEN) headers["Client-Token"] = CLIENT_TOKEN
 
-  const res = await fetch(
-    `${ZAPI_BASE}/${INSTANCE_ID}/token/${TOKEN}/send-text`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ phone: normalized, message }),
-    }
-  )
+  try {
+    const res = await fetch(
+      `${ZAPI_BASE}/${INSTANCE_ID}/token/${TOKEN}/send-text`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone: normalized, message }),
+      }
+    )
 
-  if (!res.ok) {
     const body = await res.text()
-    console.error(`[WhatsApp] Erro ao enviar para ${normalized}: ${res.status} — ${body}`)
+    if (!res.ok) {
+      console.error(`[WhatsApp] Erro ${res.status} ao enviar para ${normalized}: ${body}`)
+    } else {
+      console.info(`[WhatsApp] Mensagem enviada com sucesso para ${normalized}: ${body}`)
+    }
+  } catch (err) {
+    console.error(`[WhatsApp] Falha na chamada HTTP para ${normalized}:`, err)
   }
 }
