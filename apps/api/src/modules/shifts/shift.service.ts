@@ -3,6 +3,7 @@ import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError, AppError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import type { CreateShiftInput, UpdateShiftInput, ShiftFilters } from "./shift.dto"
+import { notifyProfessionalsAboutNewShift } from "../../shared/services/shift-notification.service"
 
 export class ShiftService {
   static async listShifts(
@@ -65,7 +66,7 @@ export class ShiftService {
     const specialty = await prisma.specialty.findUnique({ where: { id: input.specialtyId } })
     if (!specialty) throw new NotFoundError("Especialidade não encontrada")
 
-    return prisma.shift.create({
+    const shift = await prisma.shift.create({
       data: {
         hospitalId,
         specialtyId: input.specialtyId,
@@ -84,6 +85,11 @@ export class ShiftService {
         },
       },
     })
+
+    // dispara notificações em background — não bloqueia a resposta
+    void notifyProfessionalsAboutNewShift(shift)
+
+    return shift
   }
 
   static async getShift(id: string, requestingUserId?: string, role?: string) {
