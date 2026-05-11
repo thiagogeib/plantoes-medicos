@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from "express"
 import { AdminService } from "./admin.service"
-import { listUsersSchema, updateUserStatusSchema, adminShiftFiltersSchema } from "./admin.dto"
+import {
+  listUsersSchema,
+  updateUserStatusSchema,
+  adminShiftFiltersSchema,
+  adminCreateHospitalSchema,
+  adminCreateProfessionalSchema,
+} from "./admin.dto"
 
 export class AdminController {
   static async getMetrics(req: Request, res: Response, next: NextFunction) {
@@ -36,6 +42,26 @@ export class AdminController {
       const { status } = updateUserStatusSchema.parse(req.body)
       const user = await AdminService.updateUserStatus(req.params.id, status)
       res.json({ data: user })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async createHospital(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = adminCreateHospitalSchema.parse(req.body)
+      const user = await AdminService.createHospital(data)
+      res.status(201).json({ data: user })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async createProfessional(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = adminCreateProfessionalSchema.parse(req.body)
+      const user = await AdminService.createProfessional(data)
+      res.status(201).json({ data: user })
     } catch (error) {
       next(error)
     }

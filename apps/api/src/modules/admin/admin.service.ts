@@ -1,7 +1,27 @@
-import { UserRole, UserStatus } from "@prisma/client"
+import argon2 from "argon2"
+import { UserRole, UserStatus, Prisma } from "@prisma/client"
 import { prisma } from "../../prisma/client"
-import { NotFoundError, AppError } from "../../shared/errors/AppError"
+import { NotFoundError, AppError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
+import { AdminCreateHospitalInput, AdminCreateProfessionalInput } from "./admin.dto"
+
+const ARGON2_OPTIONS = {
+  type: argon2.argon2id,
+  memoryCost: 65536,
+  timeCost: 3,
+  parallelism: 1,
+}
+
+function handlePrismaConflict(err: unknown): never {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    const target = (err.meta?.target as string[]) ?? []
+    if (target.includes("email")) throw new ConflictError("Email já cadastrado")
+    if (target.includes("cnpj")) throw new ConflictError("CNPJ já cadastrado")
+    if (target.includes("cpf")) throw new ConflictError("CPF já cadastrado")
+    throw new ConflictError("Registro já cadastrado")
+  }
+  throw err
+}
 
 interface ListUsersFilters {
   role?: UserRole
@@ -118,6 +138,67 @@ export class AdminService {
         updatedAt: true,
       },
     })
+  }
+
+  static async createHospital(data: AdminCreateHospitalInput) {
+    const passwordHash = await argon2.hash(data.password, ARGON2_OPTIONS)
+    try {
+      const user = await prisma.user.create({
+        data: {
+          email: data.email,
+          passwordHash,
+          role: UserRole.HOSPITAL,
+          hospitalProfile: {
+            create: {
+              name: data.name,
+              cnpj: data.cnpj,
+              phone: data.phone,
+              street: data.street,
+              number: data.number,
+              complement: data.complement,
+              neighborhood: data.neighborhood,
+              city: data.city,
+              state: data.state,
+              zipCode: data.zipCode,
+            },
+          },
+        },
+        select: { id: true, email: true, role: true, status: true, createdAt: true, updatedAt: true },
+      })
+      return user
+    } catch (err) {
+      handlePrismaConflict(err)
+    }
+  }
+
+  static async createProfessional(data: AdminCreateProfessionalInput) {
+    const passwordHash = await argon2.hash(data.password, ARGON2_OPTIONS)
+    try {
+      const user = await prisma.user.create({
+        data: {
+          email: data.email,
+          passwordHash,
+          role: UserRole.PROFESSIONAL,
+          professionalProfile: {
+            create: {
+              name: data.name,
+              cpf: data.cpf,
+              phone: data.phone,
+              councilType: data.councilType,
+              councilNumber: data.councilNumber,
+              councilState: data.councilState,
+              specialties: {
+                create: data.specialtyIds.map((specialtyId) => ({ specialtyId })),
+              },
+            },
+          },
+        },
+        select: { id: true, email: true, role: true, status: true, createdAt: true, updatedAt: true },
+      })
+      return user
+    } catch (err) {
+      handlePrismaConflict(err)
+    }
   }
 
   static async listShifts(filters: { status?: string; page: number; limit: number }) {

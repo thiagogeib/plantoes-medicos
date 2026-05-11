@@ -9,6 +9,8 @@ adminRouter.use(authenticate, authorize("ADMIN"))
 
 adminRouter.get("/metrics", AdminController.getMetrics)
 adminRouter.get("/users", AdminController.listUsers)
+adminRouter.post("/users/hospital", AdminController.createHospital)
+adminRouter.post("/users/professional", AdminController.createProfessional)
 adminRouter.get("/users/:id", AdminController.getUser)
 adminRouter.patch("/users/:id/status", AdminController.updateUserStatus)
 adminRouter.get("/shifts", AdminController.listShifts)
