@@ -7,7 +7,7 @@ COPY apps/api/package*.json ./apps/api/
 COPY packages/types/package*.json ./packages/types/
 
 # Instala apenas as dependências dos workspaces necessários
-RUN npm ci --workspace=apps/api --workspace=packages/types
+RUN npm install --workspace=apps/api --workspace=packages/types
 
 # Copia o código-fonte
 COPY packages/types ./packages/types
