@@ -2,6 +2,8 @@ import type { Specialty, HospitalProfile } from './user'
 
 export type ShiftStatus = 'OPEN' | 'FILLED' | 'CANCELLED' | 'COMPLETED'
 
+export type CompensationType = 'MONEY' | 'HOUR_BANK' | 'OTHER'
+
 export interface Shift {
   id: string
   hospitalId: string
@@ -17,6 +19,8 @@ export interface Shift {
   slots: number
   filledSlots: number
   status: ShiftStatus
+  compensationType: CompensationType
+  compensationNote?: string
   createdAt: string
   updatedAt: string
 }
@@ -30,6 +34,8 @@ export interface CreateShiftRequest {
   endTime: string
   location: string
   slots: number
+  compensationType: CompensationType
+  compensationNote?: string
 }
 
 export interface UpdateShiftRequest {
@@ -42,6 +48,8 @@ export interface UpdateShiftRequest {
   location?: string
   slots?: number
   status?: ShiftStatus
+  compensationType?: CompensationType
+  compensationNote?: string
 }
 
 export interface ShiftFilters {

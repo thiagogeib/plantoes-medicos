@@ -1,5 +1,6 @@
 import argon2 from "argon2"
 import jwt from "jsonwebtoken"
+import crypto from "crypto"
 import { prisma } from "../../prisma/client"
 import { AppError, ConflictError, UnauthorizedError } from "../../shared/errors/AppError"
 import { LoginDTO, RegisterHospitalDTO, RegisterProfessionalDTO } from "./auth.dto"
@@ -30,7 +31,7 @@ function issueAccessToken(userId: string, role: UserRole): string {
 }
 
 function issueRefreshToken(userId: string): string {
-  return jwt.sign({ sub: userId }, process.env.JWT_REFRESH_SECRET!, {
+  return jwt.sign({ sub: userId, jti: crypto.randomUUID() }, process.env.JWT_REFRESH_SECRET!, {
     algorithm: "HS256",
     expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ?? "7d") as jwt.SignOptions["expiresIn"],
   })

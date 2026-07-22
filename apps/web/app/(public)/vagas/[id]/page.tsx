@@ -13,6 +13,7 @@ import { ArrowLeft, MapPin, Clock, Users, Building2, Stethoscope } from 'lucide-
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Shift, ApiResponse } from '@plantoes-medicos/types'
+import { compensationLabels } from '@/lib/compensation'
 
 export default function VagaPublicDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -119,6 +120,13 @@ export default function VagaPublicDetailPage() {
                     <Building2 className="h-4 w-4 shrink-0 text-slate-400" />
                     <span>{shift.hospital.name} — {shift.hospital.city}/{shift.hospital.state}</span>
                   </div>
+                )}
+              </div>
+
+              <div>
+                <Badge variant="outline">{compensationLabels[shift.compensationType]}</Badge>
+                {shift.compensationType === 'OTHER' && shift.compensationNote && (
+                  <p className="text-sm text-slate-500 mt-1.5">{shift.compensationNote}</p>
                 )}
               </div>
 

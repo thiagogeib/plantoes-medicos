@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlantaoStatusBadge } from './PlantaoStatusBadge'
+import { compensationLabels } from '@/lib/compensation'
 import type { Shift } from '@plantoes-medicos/types'
 
 interface PlantaoCardProps {
@@ -63,13 +64,17 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandid
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-slate-600 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-slate-600 mb-2">
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4 text-slate-400" />
             <span>{format(shiftDate, 'dd/MM/yyyy', { locale: ptBR })}</span>
             <span className="text-slate-400">•</span>
             <span>{shift.startTime}–{shift.endTime}</span>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <Badge variant="outline">{compensationLabels[shift.compensationType]}</Badge>
         </div>
 
         <div className="mb-4">

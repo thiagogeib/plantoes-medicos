@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlantaoStatusBadge } from '@/components/shared/plantao/PlantaoStatusBadge'
 import { CandidaturaCard } from '@/components/shared/candidatura/CandidaturaCard'
+import { Badge } from '@/components/ui/badge'
+import { compensationLabels } from '@/lib/compensation'
 import type { Shift, Application, ApiResponse, ApiListResponse } from '@plantoes-medicos/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -154,6 +156,12 @@ export default function PlantaoDetailPage() {
               <div className="text-slate-600">
                 <span className="font-medium">Especialidade: </span>{shift.specialty.name}
               </div>
+            )}
+          </div>
+          <div>
+            <Badge variant="outline">{compensationLabels[shift.compensationType]}</Badge>
+            {shift.compensationType === 'OTHER' && shift.compensationNote && (
+              <p className="text-sm text-slate-500 mt-1.5">{shift.compensationNote}</p>
             )}
           </div>
         </CardContent>

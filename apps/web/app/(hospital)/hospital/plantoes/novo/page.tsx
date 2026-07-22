@@ -27,6 +27,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import type { Specialty, ApiListResponse, ApiResponse, Shift, ApiError } from '@plantoes-medicos/types'
+import { compensationOptions } from '@/lib/compensation'
 
 const schema = z.object({
   title: z.string().min(3, 'Título obrigatório'),
@@ -37,7 +38,14 @@ const schema = z.object({
   endTime: z.string().min(1, 'Horário de término obrigatório'),
   location: z.string().min(3, 'Local obrigatório'),
   slots: z.coerce.number().min(1, 'Mínimo 1 vaga').max(50, 'Máximo 50 vagas'),
-})
+  compensationType: z.enum(['MONEY', 'HOUR_BANK', 'OTHER'], {
+    errorMap: () => ({ message: 'Selecione a forma de compensação' }),
+  }),
+  compensationNote: z.string().max(280, 'Máximo 280 caracteres').optional(),
+}).refine(
+  (val) => val.compensationType !== 'OTHER' || !!val.compensationNote?.trim(),
+  { message: 'Descreva a forma de compensação', path: ['compensationNote'] }
+)
 
 type FormValues = z.infer<typeof schema>
 
@@ -56,8 +64,12 @@ export default function NovoPlantaoPage() {
       endTime: '',
       location: '',
       slots: 1,
+      compensationType: 'MONEY',
+      compensationNote: '',
     },
   })
+
+  const compensationType = form.watch('compensationType')
 
   useEffect(() => {
     apiClient
@@ -222,6 +234,52 @@ export default function NovoPlantaoPage() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="compensationType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Forma de compensação</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {compensationOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {compensationType === 'OTHER' && (
+                <FormField
+                  control={form.control}
+                  name="compensationNote"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descreva a modalidade</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Ex.: permuta com outro setor, bônus por produtividade..."
+                          className="resize-none"
+                          rows={2}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <div className="flex gap-3 pt-2">
                 <Button

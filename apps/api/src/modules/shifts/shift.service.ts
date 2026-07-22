@@ -77,6 +77,8 @@ export class ShiftService {
         endTime: input.endTime,
         location: input.location,
         slots: input.slots,
+        compensationType: input.compensationType,
+        compensationNote: input.compensationNote,
       },
       include: {
         specialty: true,
@@ -132,6 +134,8 @@ export class ShiftService {
     if (input.location !== undefined) updateData.location = input.location
     if (input.slots !== undefined) updateData.slots = input.slots
     if (input.status !== undefined) updateData.status = input.status
+    if (input.compensationType !== undefined) updateData.compensationType = input.compensationType
+    if (input.compensationNote !== undefined) updateData.compensationNote = input.compensationNote
 
     return prisma.shift.update({
       where: { id },

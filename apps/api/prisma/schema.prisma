@@ -39,6 +39,46 @@ enum CouncilType {
   COREN
 }
 
+enum CompensationType {
+  MONEY
+  HOUR_BANK
+  OTHER
+}
+
+enum StaffStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
+}
+
+enum SwapRequestStatus {
+  OPEN
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum SwapInterestStatus {
+  PENDING
+  SELECTED
+  REJECTED
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED_PENDING_COVERAGE
+  COVERED
+  REJECTED
+  CANCELLED
+}
+
+enum AbsenceType {
+  ATESTADO
+  LICENCA
+  OUTRO
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
@@ -85,7 +125,9 @@ model HospitalProfile {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  shifts Shift[]
+  shifts   Shift[]
+  staff    HospitalStaff[]
+  absences Absence[]
 
   @@index([cnpj])
   @@index([city])
@@ -105,8 +147,14 @@ model ProfessionalProfile {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  specialties  ProfessionalSpecialty[]
-  applications Application[]
+  specialties         ProfessionalSpecialty[]
+  applications        Application[]
+  hospitalLinks       HospitalStaff[]
+  swapRequests        ShiftSwapRequest[]
+  swapInterests       ShiftSwapInterest[]
+  leaveRequests       LeaveRequest[]
+  leaveCoverInterests LeaveCoverInterest[]
+  absences            Absence[]
 
   @@index([cpf])
   @@index([councilNumber])
@@ -130,24 +178,28 @@ model ProfessionalSpecialty {
 }
 
 model Shift {
-  id          String      @id @default(cuid())
-  hospitalId  String
-  hospital    HospitalProfile @relation(fields: [hospitalId], references: [id])
-  specialtyId String
-  specialty   Specialty   @relation(fields: [specialtyId], references: [id])
-  title       String
-  description String
-  date        DateTime    @db.Date
-  startTime   String
-  endTime     String
-  location    String
-  slots       Int         @default(1)
-  filledSlots Int         @default(0)
-  status      ShiftStatus @default(OPEN)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id               String           @id @default(cuid())
+  hospitalId       String
+  hospital         HospitalProfile  @relation(fields: [hospitalId], references: [id])
+  specialtyId      String
+  specialty        Specialty        @relation(fields: [specialtyId], references: [id])
+  title            String
+  description      String
+  date             DateTime         @db.Date
+  startTime        String
+  endTime          String
+  location         String
+  slots            Int              @default(1)
+  filledSlots      Int              @default(0)
+  status           ShiftStatus      @default(OPEN)
+  compensationType CompensationType @default(MONEY)
+  compensationNote String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  applications Application[]
+  applications  Application[]
+  swapRequests  ShiftSwapRequest[]
+  leaveRequests LeaveRequest[]
 
   @@index([hospitalId])
   @@index([specialtyId])
@@ -157,18 +209,126 @@ model Shift {
 }
 
 model Application {
-  id             String            @id @default(cuid())
+  id             String              @id @default(cuid())
   shiftId        String
-  shift          Shift             @relation(fields: [shiftId], references: [id])
+  shift          Shift               @relation(fields: [shiftId], references: [id])
   professionalId String
   professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
-  status         ApplicationStatus @default(PENDING)
+  status         ApplicationStatus   @default(PENDING)
   message        String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@unique([shiftId, professionalId])
   @@index([shiftId])
   @@index([professionalId])
   @@index([status])
+}
+
+model HospitalStaff {
+  id               String              @id @default(cuid())
+  hospitalId       String
+  hospital         HospitalProfile     @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  professionalId   String
+  professional     ProfessionalProfile @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  status           StaffStatus         @default(INVITED)
+  hourBankMinutes  Int                 @default(0)
+  availableDaysOff Int                 @default(0)
+  invitedAt        DateTime            @default(now())
+  joinedAt         DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([hospitalId, professionalId])
+  @@index([hospitalId])
+  @@index([professionalId])
+  @@index([status])
+}
+
+model ShiftSwapRequest {
+  id                       String              @id @default(cuid())
+  shiftId                  String
+  shift                    Shift               @relation(fields: [shiftId], references: [id])
+  requestingProfessionalId String
+  requestingProfessional   ProfessionalProfile @relation(fields: [requestingProfessionalId], references: [id])
+  status                   SwapRequestStatus   @default(OPEN)
+  reason                   String?
+  selectedInterestId       String?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+
+  interests ShiftSwapInterest[]
+
+  @@index([shiftId])
+  @@index([requestingProfessionalId])
+  @@index([status])
+}
+
+model ShiftSwapInterest {
+  id             String              @id @default(cuid())
+  swapRequestId  String
+  swapRequest    ShiftSwapRequest    @relation(fields: [swapRequestId], references: [id], onDelete: Cascade)
+  professionalId String
+  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  status         SwapInterestStatus  @default(PENDING)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([swapRequestId, professionalId])
+  @@index([swapRequestId])
+  @@index([professionalId])
+}
+
+model LeaveRequest {
+  id                      String              @id @default(cuid())
+  shiftId                 String
+  shift                   Shift               @relation(fields: [shiftId], references: [id])
+  professionalId          String
+  professional            ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  date                    DateTime            @db.Date
+  reason                  String?
+  status                  LeaveRequestStatus  @default(PENDING)
+  selectedCoverInterestId String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  coverInterests LeaveCoverInterest[]
+
+  @@index([shiftId])
+  @@index([professionalId])
+  @@index([status])
+}
+
+model LeaveCoverInterest {
+  id             String              @id @default(cuid())
+  leaveRequestId String
+  leaveRequest   LeaveRequest        @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  professionalId String
+  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  status         SwapInterestStatus  @default(PENDING)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([leaveRequestId, professionalId])
+  @@index([leaveRequestId])
+  @@index([professionalId])
+}
+
+model Absence {
+  id             String              @id @default(cuid())
+  hospitalId     String
+  hospital       HospitalProfile     @relation(fields: [hospitalId], references: [id])
+  professionalId String
+  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  type           AbsenceType
+  startDate      DateTime            @db.Date
+  endDate        DateTime            @db.Date
+  note           String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([hospitalId])
+  @@index([professionalId])
+  @@index([startDate])
+  @@index([endDate])
 }

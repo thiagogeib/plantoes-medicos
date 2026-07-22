@@ -13,6 +13,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Stethoscope,
+  Repeat,
+  CalendarOff,
+  ClipboardList,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@plantoes-medicos/types'
@@ -27,12 +31,19 @@ const navByRole: Record<UserRole, NavItem[]> = {
   HOSPITAL: [
     { label: 'Dashboard', href: '/hospital/dashboard', icon: LayoutDashboard },
     { label: 'Plantões', href: '/hospital/plantoes', icon: Calendar },
+    { label: 'Minha Equipe', href: '/hospital/equipe', icon: Users },
+    { label: 'Trocas', href: '/hospital/trocas', icon: Repeat },
+    { label: 'Folgas', href: '/hospital/folgas', icon: CalendarOff },
+    { label: 'Status do Dia', href: '/hospital/escala-do-dia', icon: ClipboardList },
     { label: 'Histórico', href: '/hospital/historico', icon: History },
   ],
   PROFESSIONAL: [
     { label: 'Dashboard', href: '/profissional/dashboard', icon: LayoutDashboard },
     { label: 'Buscar Plantões', href: '/profissional/plantoes', icon: Search },
     { label: 'Minhas Candidaturas', href: '/profissional/candidaturas', icon: FileText },
+    { label: 'Meus Hospitais', href: '/profissional/hospitais', icon: Building2 },
+    { label: 'Trocas', href: '/profissional/trocas', icon: Repeat },
+    { label: 'Folgas', href: '/profissional/folgas', icon: CalendarOff },
   ],
   ADMIN: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },

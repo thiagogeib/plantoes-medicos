@@ -6,9 +6,10 @@ import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlantaoStatusBadge } from '@/components/shared/plantao/PlantaoStatusBadge'
-import type { Shift, Application, ApiResponse } from '@plantoes-medicos/types'
+import type { Shift, Application, ApiResponse, ApiError } from '@plantoes-medicos/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ArrowLeft, MapPin, Clock, Users, Building2 } from 'lucide-react'
@@ -22,6 +23,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { compensationLabels } from '@/lib/compensation'
 
 export default function PlantaoDetailProfissionalPage() {
   const { id } = useParams<{ id: string }>()
@@ -32,6 +34,10 @@ export default function PlantaoDetailProfissionalPage() {
   const [applyOpen, setApplyOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [swapOpen, setSwapOpen] = useState(false)
+  const [swapReason, setSwapReason] = useState('')
+  const [leaveOpen, setLeaveOpen] = useState(false)
+  const [leaveReason, setLeaveReason] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -78,6 +84,34 @@ export default function PlantaoDetailProfissionalPage() {
       toast.success('Candidatura retirada')
     } catch {
       toast.error('Erro ao retirar candidatura')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleOfferSwap() {
+    setSubmitting(true)
+    try {
+      await apiClient.post('/shift-swaps', { shiftId: id, reason: swapReason || undefined })
+      toast.success('Plantão oferecido para troca')
+      setSwapOpen(false)
+      setSwapReason('')
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao oferecer plantão para troca')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleRequestLeave() {
+    setSubmitting(true)
+    try {
+      await apiClient.post('/leave-requests', { shiftId: id, reason: leaveReason || undefined })
+      toast.success('Solicitação de folga enviada ao coordenador')
+      setLeaveOpen(false)
+      setLeaveReason('')
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao solicitar folga')
     } finally {
       setSubmitting(false)
     }
@@ -139,6 +173,13 @@ export default function PlantaoDetailProfissionalPage() {
             )}
           </div>
 
+          <div>
+            <Badge variant="outline">{compensationLabels[shift.compensationType]}</Badge>
+            {shift.compensationType === 'OTHER' && shift.compensationNote && (
+              <p className="text-sm text-slate-500 mt-1.5">{shift.compensationNote}</p>
+            )}
+          </div>
+
           {myApplication && myApplication.status !== 'WITHDRAWN' && (
             <div className="rounded-lg border border-slate-200 p-4 bg-slate-50 text-sm">
               <span className="font-medium">Sua candidatura: </span>
@@ -185,6 +226,62 @@ export default function PlantaoDetailProfissionalPage() {
               <Button variant="outline" onClick={handleWithdraw} disabled={submitting}>
                 {submitting ? 'Retirando...' : 'Retirar candidatura'}
               </Button>
+            )}
+
+            {myApplication?.status === 'ACCEPTED' && (
+              <>
+                <Dialog open={swapOpen} onOpenChange={setSwapOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">Oferecer para troca</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Oferecer plantão para troca</DialogTitle>
+                      <DialogDescription>
+                        Outros profissionais do quadro deste hospital poderão manifestar interesse. O coordenador aprova a troca antes de efetivá-la.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                      placeholder="Motivo (opcional)..."
+                      value={swapReason}
+                      onChange={(e) => setSwapReason(e.target.value)}
+                      rows={3}
+                    />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setSwapOpen(false)}>Cancelar</Button>
+                      <Button onClick={handleOfferSwap} disabled={submitting}>
+                        {submitting ? 'Enviando...' : 'Confirmar oferta'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">Solicitar folga</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Solicitar folga neste plantão</DialogTitle>
+                      <DialogDescription>
+                        O coordenador avalia a solicitação e, se aprovada, abre o plantão para cobertura por outro profissional do quadro.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                      placeholder="Motivo (opcional)..."
+                      value={leaveReason}
+                      onChange={(e) => setLeaveReason(e.target.value)}
+                      rows={3}
+                    />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setLeaveOpen(false)}>Cancelar</Button>
+                      <Button onClick={handleRequestLeave} disabled={submitting}>
+                        {submitting ? 'Enviando...' : 'Confirmar solicitação'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
           </div>
         </CardContent>

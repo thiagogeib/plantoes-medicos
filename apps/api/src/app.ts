@@ -9,6 +9,11 @@ import { hospitalRouter } from "./modules/shifts/hospital.routes"
 import { applicationRouter } from "./modules/applications/application.routes"
 import { adminRouter } from "./modules/admin/admin.routes"
 import { publicRouter } from "./modules/public/public.routes"
+import { hospitalStaffRouter } from "./modules/hospital-staff/hospital-staff.routes"
+import { shiftSwapRouter } from "./modules/shift-swap/shift-swap.routes"
+import { leaveRequestRouter } from "./modules/leave-requests/leave-request.routes"
+import { absenceRouter } from "./modules/absences/absence.routes"
+import { scheduleStatusRouter } from "./modules/schedule-status/schedule-status.routes"
 import { errorHandler } from "./shared/errors/errorHandler"
 import { healthHandler } from "./health"
 
@@ -43,6 +48,11 @@ app.use("/api/v1/hospitals", hospitalRouter)
 app.use("/api/v1/applications", applicationRouter)
 app.use("/api/v1/admin", adminRouter)
 app.use("/api/v1/public", publicRouter)
+app.use("/api/v1/staff", hospitalStaffRouter)
+app.use("/api/v1/shift-swaps", shiftSwapRouter)
+app.use("/api/v1/leave-requests", leaveRequestRouter)
+app.use("/api/v1/absences", absenceRouter)
+app.use("/api/v1/schedule-status", scheduleStatusRouter)
 
 app.use(errorHandler)
 
