@@ -178,24 +178,26 @@ model ProfessionalSpecialty {
 }
 
 model Shift {
-  id               String           @id @default(cuid())
-  hospitalId       String
-  hospital         HospitalProfile  @relation(fields: [hospitalId], references: [id])
-  specialtyId      String
-  specialty        Specialty        @relation(fields: [specialtyId], references: [id])
-  title            String
-  description      String
-  date             DateTime         @db.Date
-  startTime        String
-  endTime          String
-  location         String
-  slots            Int              @default(1)
-  filledSlots      Int              @default(0)
-  status           ShiftStatus      @default(OPEN)
-  compensationType CompensationType @default(MONEY)
-  compensationNote String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                   String           @id @default(cuid())
+  hospitalId           String
+  hospital             HospitalProfile  @relation(fields: [hospitalId], references: [id])
+  specialtyId          String
+  specialty            Specialty        @relation(fields: [specialtyId], references: [id])
+  title                String
+  description          String
+  date                 DateTime         @db.Date
+  startTime            String
+  endTime              String
+  location             String
+  slots                Int              @default(1)
+  filledSlots          Int              @default(0)
+  status               ShiftStatus      @default(OPEN)
+  compensationType     CompensationType @default(MONEY)
+  compensationNote     String?
+  coverageForAbsenceId String?
+  coverageForAbsence   Absence?         @relation(fields: [coverageForAbsenceId], references: [id])
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   applications  Application[]
   swapRequests  ShiftSwapRequest[]
@@ -206,6 +208,7 @@ model Shift {
   @@index([date])
   @@index([status])
   @@index([status, date])
+  @@index([coverageForAbsenceId])
 }
 
 model Application {
@@ -326,6 +329,8 @@ model Absence {
   note           String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
+
+  coverageShifts Shift[]
 
   @@index([hospitalId])
   @@index([professionalId])

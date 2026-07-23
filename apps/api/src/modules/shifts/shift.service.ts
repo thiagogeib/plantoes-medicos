@@ -66,6 +66,12 @@ export class ShiftService {
     const specialty = await prisma.specialty.findUnique({ where: { id: input.specialtyId } })
     if (!specialty) throw new NotFoundError("Especialidade não encontrada")
 
+    if (input.coverageForAbsenceId) {
+      const absence = await prisma.absence.findUnique({ where: { id: input.coverageForAbsenceId } })
+      if (!absence) throw new NotFoundError("Afastamento não encontrado")
+      if (absence.hospitalId !== hospitalId) throw new ForbiddenError("Afastamento não pertence a este hospital")
+    }
+
     const shift = await prisma.shift.create({
       data: {
         hospitalId,
@@ -79,11 +85,15 @@ export class ShiftService {
         slots: input.slots,
         compensationType: input.compensationType,
         compensationNote: input.compensationNote,
+        coverageForAbsenceId: input.coverageForAbsenceId,
       },
       include: {
         specialty: true,
         hospital: {
           select: { id: true, name: true, city: true, state: true },
+        },
+        coverageForAbsence: {
+          include: { professional: { select: { id: true, name: true } } },
         },
       },
     })
@@ -101,6 +111,9 @@ export class ShiftService {
         specialty: true,
         hospital: {
           select: { id: true, name: true, city: true, state: true, phone: true },
+        },
+        coverageForAbsence: {
+          include: { professional: { select: { id: true, name: true } } },
         },
       },
     })
@@ -120,6 +133,12 @@ export class ShiftService {
       if (!specialty) throw new NotFoundError("Especialidade não encontrada")
     }
 
+    if (input.coverageForAbsenceId) {
+      const absence = await prisma.absence.findUnique({ where: { id: input.coverageForAbsenceId } })
+      if (!absence) throw new NotFoundError("Afastamento não encontrado")
+      if (absence.hospitalId !== hospitalId) throw new ForbiddenError("Afastamento não pertence a este hospital")
+    }
+
     if (input.status === ShiftStatus.CANCELLED && shift.status === ShiftStatus.FILLED) {
       throw new ConflictError("Não é possível cancelar um plantão já preenchido")
     }
@@ -136,6 +155,7 @@ export class ShiftService {
     if (input.status !== undefined) updateData.status = input.status
     if (input.compensationType !== undefined) updateData.compensationType = input.compensationType
     if (input.compensationNote !== undefined) updateData.compensationNote = input.compensationNote
+    if (input.coverageForAbsenceId !== undefined) updateData.coverageForAbsenceId = input.coverageForAbsenceId
 
     return prisma.shift.update({
       where: { id },
@@ -144,6 +164,9 @@ export class ShiftService {
         specialty: true,
         hospital: {
           select: { id: true, name: true, city: true, state: true },
+        },
+        coverageForAbsence: {
+          include: { professional: { select: { id: true, name: true } } },
         },
       },
     })

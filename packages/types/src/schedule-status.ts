@@ -34,10 +34,24 @@ export interface ScheduleStatusAbsence {
   professional: { id: string; name: string }
 }
 
+export interface ScheduleStatusExtraShift {
+  id: string
+  title: string
+  startTime: string
+  endTime: string
+  specialty?: { id: string; name: string }
+  coveringAbsence: {
+    id: string
+    type: string
+    professional: { id: string; name: string }
+  } | null
+}
+
 export interface ScheduleStatus {
   date: string
   shifts: ScheduleStatusShift[]
   swaps: ScheduleStatusSwap[]
   leaves: ScheduleStatusLeave[]
   absences: ScheduleStatusAbsence[]
+  extraShifts: ScheduleStatusExtraShift[]
 }

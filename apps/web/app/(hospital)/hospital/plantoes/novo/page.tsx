@@ -26,8 +26,16 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import type { Specialty, ApiListResponse, ApiResponse, Shift, ApiError } from '@plantoes-medicos/types'
+import type { Specialty, ApiListResponse, ApiResponse, Shift, ApiError, Absence } from '@plantoes-medicos/types'
 import { compensationOptions } from '@/lib/compensation'
+
+const NO_ABSENCE = '__none__'
+
+const absenceTypeLabel: Record<string, string> = {
+  ATESTADO: 'Atestado',
+  LICENCA: 'Licença',
+  OUTRO: 'Outro',
+}
 
 const schema = z.object({
   title: z.string().min(3, 'Título obrigatório'),
@@ -42,6 +50,7 @@ const schema = z.object({
     errorMap: () => ({ message: 'Selecione a forma de compensação' }),
   }),
   compensationNote: z.string().max(280, 'Máximo 280 caracteres').optional(),
+  coverageForAbsenceId: z.string().optional(),
 }).refine(
   (val) => val.compensationType !== 'OTHER' || !!val.compensationNote?.trim(),
   { message: 'Descreva a forma de compensação', path: ['compensationNote'] }
@@ -52,6 +61,7 @@ type FormValues = z.infer<typeof schema>
 export default function NovoPlantaoPage() {
   const router = useRouter()
   const [specialties, setSpecialties] = useState<Specialty[]>([])
+  const [absences, setAbsences] = useState<Absence[]>([])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -66,6 +76,7 @@ export default function NovoPlantaoPage() {
       slots: 1,
       compensationType: 'MONEY',
       compensationNote: '',
+      coverageForAbsenceId: NO_ABSENCE,
     },
   })
 
@@ -76,11 +87,20 @@ export default function NovoPlantaoPage() {
       .get<ApiListResponse<Specialty>>('/specialties')
       .then((res) => setSpecialties(res.data))
       .catch(() => toast.error('Erro ao carregar especialidades'))
+
+    apiClient
+      .get<{ data: Absence[] }>('/absences/hospital')
+      .then((res) => setAbsences(res.data))
+      .catch(() => {})
   }, [])
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const res = await apiClient.post<ApiResponse<Shift>>('/shifts', values)
+      const payload = {
+        ...values,
+        coverageForAbsenceId: values.coverageForAbsenceId === NO_ABSENCE ? undefined : values.coverageForAbsenceId,
+      }
+      const res = await apiClient.post<ApiResponse<Shift>>('/shifts', payload)
       toast.success('Plantão publicado com sucesso')
       router.push(`/hospital/plantoes/${res.data.id}`)
     } catch (err) {
@@ -280,6 +300,32 @@ export default function NovoPlantaoPage() {
                   )}
                 />
               )}
+
+              <FormField
+                control={form.control}
+                name="coverageForAbsenceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Este plantão é extra, para cobrir um afastamento? (opcional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Nenhum" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={NO_ABSENCE}>Nenhum — plantão normal</SelectItem>
+                        {absences.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {absenceTypeLabel[a.type] ?? a.type} — {a.professional?.name} ({a.startDate} a {a.endDate})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex gap-3 pt-2">
                 <Button

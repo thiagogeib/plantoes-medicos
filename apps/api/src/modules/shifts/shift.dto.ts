@@ -22,6 +22,7 @@ export const createShiftSchema = z
     slots: z.number().int().min(1, "Mínimo de 1 vaga").max(50, "Máximo de 50 vagas"),
     compensationType: z.nativeEnum(CompensationType).default(CompensationType.MONEY),
     compensationNote: z.string().max(280, "Nota deve ter no máximo 280 caracteres").optional(),
+    coverageForAbsenceId: z.string().cuid("coverageForAbsenceId inválido").optional(),
   })
   .refine(
     (val) => val.compensationType !== CompensationType.OTHER || !!val.compensationNote?.trim(),
@@ -48,6 +49,7 @@ export const updateShiftSchema = z.object({
   status: z.nativeEnum(ShiftStatus).optional(),
   compensationType: z.nativeEnum(CompensationType).optional(),
   compensationNote: z.string().max(280, "Nota deve ter no máximo 280 caracteres").optional(),
+  coverageForAbsenceId: z.string().cuid("coverageForAbsenceId inválido").optional(),
 })
 
 export const shiftFiltersSchema = z.object({

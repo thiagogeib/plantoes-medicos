@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Repeat, CalendarOff, FileWarning, Calendar } from 'lucide-react'
+import { Repeat, CalendarOff, FileWarning, Calendar, PlusCircle } from 'lucide-react'
 import type { ScheduleStatus } from '@plantoes-medicos/types'
 
 const absenceTypeLabel: Record<string, string> = {
@@ -153,6 +153,34 @@ export default function EscalaDoDiaPage() {
                       <span className="font-medium text-slate-800">{a.professional.name}</span>
                       <span className="text-slate-500"> — {absenceTypeLabel[a.type] ?? a.type}</span>
                       {a.note && <p className="text-slate-400 mt-0.5">{a.note}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <PlusCircle className="h-4 w-4 text-slate-400" /> Plantões extras — cobertura de ausência ({status.extraShifts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {status.extraShifts.length === 0 ? (
+                <p className="text-sm text-slate-400">Nenhum plantão extra criado para cobrir ausência nesta data.</p>
+              ) : (
+                <div className="space-y-2">
+                  {status.extraShifts.map((s) => (
+                    <div key={s.id} className="text-sm border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                      <span className="font-medium text-slate-800">{s.title}</span>
+                      <span className="text-slate-500"> — {s.startTime}–{s.endTime}</span>
+                      {s.coveringAbsence && (
+                        <p className="text-slate-400 mt-0.5">
+                          Cobre {absenceTypeLabel[s.coveringAbsence.type] ?? s.coveringAbsence.type} de{' '}
+                          <span className="font-medium">{s.coveringAbsence.professional.name}</span>
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

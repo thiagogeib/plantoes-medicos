@@ -5,7 +5,7 @@ export class ScheduleStatusService {
   static async getDailyStatus(hospitalId: string, date: string) {
     const targetDate = new Date(date)
 
-    const [shifts, swaps, leaves, absences] = await Promise.all([
+    const [shifts, swaps, leaves, absences, extraShifts] = await Promise.all([
       prisma.shift.findMany({
         where: { hospitalId, date: targetDate },
         include: { specialty: true },
@@ -47,6 +47,15 @@ export class ScheduleStatusService {
         },
         include: { professional: { select: { id: true, name: true } } },
       }),
+      prisma.shift.findMany({
+        where: { hospitalId, date: targetDate, coverageForAbsenceId: { not: null } },
+        include: {
+          specialty: true,
+          coverageForAbsence: {
+            include: { professional: { select: { id: true, name: true } } },
+          },
+        },
+      }),
     ])
 
     return {
@@ -67,6 +76,20 @@ export class ScheduleStatusService {
         coveredBy: l.coverInterests[0]?.professional ?? null,
       })),
       absences,
+      extraShifts: extraShifts.map((s) => ({
+        id: s.id,
+        title: s.title,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        specialty: s.specialty,
+        coveringAbsence: s.coverageForAbsence
+          ? {
+              id: s.coverageForAbsence.id,
+              type: s.coverageForAbsence.type,
+              professional: s.coverageForAbsence.professional,
+            }
+          : null,
+      })),
     }
   }
 }

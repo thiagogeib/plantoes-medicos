@@ -21,6 +21,12 @@ export interface Shift {
   status: ShiftStatus
   compensationType: CompensationType
   compensationNote?: string
+  coverageForAbsenceId?: string
+  coverageForAbsence?: {
+    id: string
+    type: string
+    professional: { id: string; name: string }
+  }
   createdAt: string
   updatedAt: string
 }
@@ -36,6 +42,7 @@ export interface CreateShiftRequest {
   slots: number
   compensationType: CompensationType
   compensationNote?: string
+  coverageForAbsenceId?: string
 }
 
 export interface UpdateShiftRequest {
@@ -50,6 +57,7 @@ export interface UpdateShiftRequest {
   status?: ShiftStatus
   compensationType?: CompensationType
   compensationNote?: string
+  coverageForAbsenceId?: string
 }
 
 export interface ShiftFilters {
