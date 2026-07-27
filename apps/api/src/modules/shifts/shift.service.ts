@@ -185,6 +185,31 @@ export class ShiftService {
     })
   }
 
+  static async hardDeleteShift(id: string, hospitalId: string) {
+    const shift = await prisma.shift.findUnique({
+      where: { id },
+      include: { applications: true },
+    })
+    if (!shift) throw new NotFoundError("Plantão não encontrado")
+    if (shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão para excluir este plantão")
+
+    const hasAccepted = shift.applications.some((a) => a.status === "ACCEPTED")
+    if (hasAccepted) {
+      throw new ConflictError(
+        "Não é possível excluir um plantão com candidatura aceita — cancele-o em vez disso"
+      )
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.shiftSwapInterest.deleteMany({ where: { swapRequest: { shiftId: id } } })
+      await tx.shiftSwapRequest.deleteMany({ where: { shiftId: id } })
+      await tx.leaveCoverInterest.deleteMany({ where: { leaveRequest: { shiftId: id } } })
+      await tx.leaveRequest.deleteMany({ where: { shiftId: id } })
+      await tx.application.deleteMany({ where: { shiftId: id } })
+      await tx.shift.delete({ where: { id } })
+    })
+  }
+
   static async listHospitalShifts(hospitalId: string, filters: ShiftFilters) {
     const { status, page, limit } = filters
     const { skip, take } = paginate(page, limit)

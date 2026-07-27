@@ -68,6 +68,20 @@ export class ShiftController {
     }
   }
 
+  static async hardDelete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const hospital = await prisma.hospitalProfile.findUnique({
+        where: { userId: req.user.userId },
+      })
+      if (!hospital) throw new NotFoundError("Perfil de hospital não encontrado")
+
+      await ShiftService.hardDeleteShift(req.params.id, hospital.id)
+      res.status(204).send()
+    } catch (error) {
+      next(error)
+    }
+  }
+
   static async listHospitalShifts(req: Request, res: Response, next: NextFunction) {
     try {
       const hospital = await prisma.hospitalProfile.findUnique({

@@ -36,7 +36,15 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Building2, MapPin, FileWarning } from 'lucide-react'
-import type { HospitalStaff, StaffStatus, ApiError } from '@plantoes-medicos/types'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import type { HospitalStaff, StaffStatus, ApiError, Absence } from '@plantoes-medicos/types'
+
+const absenceTypeLabel: Record<string, string> = {
+  ATESTADO: 'Atestado',
+  LICENCA: 'Licença',
+  OUTRO: 'Outro',
+}
 
 const absenceSchema = z
   .object({
@@ -153,12 +161,17 @@ export default function MeusHospitaisPage() {
   const [loading, setLoading] = useState(true)
   const [respondingId, setRespondingId] = useState<string | null>(null)
   const [absenceTarget, setAbsenceTarget] = useState<HospitalStaff | null>(null)
+  const [absences, setAbsences] = useState<Absence[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiClient.get<{ data: HospitalStaff[] }>('/staff/me')
-      setLinks(res.data)
+      const [linksRes, absencesRes] = await Promise.all([
+        apiClient.get<{ data: HospitalStaff[] }>('/staff/me'),
+        apiClient.get<{ data: Absence[] }>('/absences/mine').catch(() => ({ data: [] })),
+      ])
+      setLinks(linksRes.data)
+      setAbsences(absencesRes.data)
     } catch {
       toast.error('Erro ao carregar hospitais')
     } finally {
@@ -261,6 +274,32 @@ export default function MeusHospitaisPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {!loading && (
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Meus afastamentos</h2>
+          {absences.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-slate-400">Nenhum afastamento registrado ainda.</CardContent></Card>
+          ) : (
+            <div className="space-y-2">
+              {absences.map((a) => (
+                <Card key={a.id}>
+                  <CardContent className="p-4 text-sm">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="font-medium text-slate-800">{absenceTypeLabel[a.type] ?? a.type}</span>
+                      <span className="text-slate-500">
+                        {format(new Date(a.startDate), 'dd/MM/yyyy', { locale: ptBR })} a {format(new Date(a.endDate), 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                    </div>
+                    <div className="text-slate-400 mt-0.5">{a.hospital?.name}</div>
+                    {a.note && <p className="text-slate-500 mt-1">{a.note}</p>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

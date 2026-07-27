@@ -9,8 +9,25 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, Building2, Repeat } from 'lucide-react'
-import type { ShiftSwapRequest, SwapRequestStatus } from '@plantoes-medicos/types'
+import { Clock, Building2, Repeat, Plus } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { ShiftSwapRequest, SwapRequestStatus, Application, ApiError } from '@plantoes-medicos/types'
 
 const statusLabel: Record<SwapRequestStatus, string> = {
   OPEN: 'Aberta',
@@ -50,18 +67,26 @@ function SwapShiftInfo({ swap }: { swap: ShiftSwapRequest }) {
 export default function TrocasProfissionalPage() {
   const [available, setAvailable] = useState<ShiftSwapRequest[]>([])
   const [mine, setMine] = useState<ShiftSwapRequest[]>([])
+  const [acceptedApplications, setAcceptedApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [selectedShiftId, setSelectedShiftId] = useState('')
+  const [reason, setReason] = useState('')
+  const [creating, setCreating] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [availableRes, mineRes] = await Promise.all([
+      const [availableRes, mineRes, applicationsRes] = await Promise.all([
         apiClient.get<{ data: ShiftSwapRequest[] }>('/shift-swaps/available'),
         apiClient.get<{ data: ShiftSwapRequest[] }>('/shift-swaps/mine'),
+        apiClient.get<{ data: Application[] }>('/applications/me'),
       ])
       setAvailable(availableRes.data)
       setMine(mineRes.data)
+      setAcceptedApplications(applicationsRes.data.filter((a) => a.status === 'ACCEPTED'))
     } catch {
       toast.error('Erro ao carregar trocas de plantão')
     } finally {
@@ -72,6 +97,26 @@ export default function TrocasProfissionalPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  async function handleCreate() {
+    if (!selectedShiftId) {
+      toast.error('Selecione um plantão')
+      return
+    }
+    setCreating(true)
+    try {
+      await apiClient.post('/shift-swaps', { shiftId: selectedShiftId, reason: reason || undefined })
+      toast.success('Plantão oferecido para troca')
+      setCreateOpen(false)
+      setSelectedShiftId('')
+      setReason('')
+      void load()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao oferecer plantão para troca')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   async function handleInterest(id: string) {
     setBusyId(id)
@@ -101,11 +146,61 @@ export default function TrocasProfissionalPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Trocas de Plantão</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
-          Ofereça um plantão aceito para troca, ou manifeste interesse em cobrir a troca de um colega.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Trocas de Plantão</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Ofereça um plantão aceito para troca, ou manifeste interesse em cobrir a troca de um colega.
+          </p>
+        </div>
+
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Oferecer plantão para troca
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Oferecer plantão para troca</DialogTitle>
+              <DialogDescription>
+                Escolha um plantão que você já teve aceito. Outros profissionais do quadro do mesmo hospital poderão manifestar interesse, e o coordenador aprova a troca.
+              </DialogDescription>
+            </DialogHeader>
+            {acceptedApplications.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Você ainda não tem nenhum plantão aceito para oferecer em troca.
+              </p>
+            ) : (
+              <>
+                <Select value={selectedShiftId} onValueChange={setSelectedShiftId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o plantão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {acceptedApplications.map((a) => (
+                      <SelectItem key={a.shiftId} value={a.shiftId}>
+                        {a.shift?.title} — {a.shift?.date && format(new Date(a.shift.date), 'dd/MM/yyyy', { locale: ptBR })} ({a.shift?.startTime}–{a.shift?.endTime})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  placeholder="Motivo (opcional)..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={3}
+                />
+              </>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCreate} disabled={creating || acceptedApplications.length === 0}>
+                {creating ? 'Enviando...' : 'Confirmar oferta'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div>

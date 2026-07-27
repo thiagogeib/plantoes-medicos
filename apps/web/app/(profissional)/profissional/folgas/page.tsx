@@ -9,8 +9,25 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, Building2, CalendarOff } from 'lucide-react'
-import type { LeaveRequest, LeaveRequestStatus } from '@plantoes-medicos/types'
+import { Clock, Building2, CalendarOff, Plus } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { LeaveRequest, LeaveRequestStatus, Application, ApiError } from '@plantoes-medicos/types'
 
 const statusLabel: Record<LeaveRequestStatus, string> = {
   PENDING: 'Aguardando coordenador',
@@ -50,18 +67,26 @@ function LeaveShiftInfo({ leave }: { leave: LeaveRequest }) {
 export default function FolgasProfissionalPage() {
   const [available, setAvailable] = useState<LeaveRequest[]>([])
   const [mine, setMine] = useState<LeaveRequest[]>([])
+  const [acceptedApplications, setAcceptedApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [selectedShiftId, setSelectedShiftId] = useState('')
+  const [reason, setReason] = useState('')
+  const [creating, setCreating] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [availableRes, mineRes] = await Promise.all([
+      const [availableRes, mineRes, applicationsRes] = await Promise.all([
         apiClient.get<{ data: LeaveRequest[] }>('/leave-requests/available'),
         apiClient.get<{ data: LeaveRequest[] }>('/leave-requests/mine'),
+        apiClient.get<{ data: Application[] }>('/applications/me'),
       ])
       setAvailable(availableRes.data)
       setMine(mineRes.data)
+      setAcceptedApplications(applicationsRes.data.filter((a) => a.status === 'ACCEPTED'))
     } catch {
       toast.error('Erro ao carregar folgas')
     } finally {
@@ -72,6 +97,26 @@ export default function FolgasProfissionalPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  async function handleCreate() {
+    if (!selectedShiftId) {
+      toast.error('Selecione um plantão')
+      return
+    }
+    setCreating(true)
+    try {
+      await apiClient.post('/leave-requests', { shiftId: selectedShiftId, reason: reason || undefined })
+      toast.success('Solicitação de folga enviada ao coordenador')
+      setCreateOpen(false)
+      setSelectedShiftId('')
+      setReason('')
+      void load()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao solicitar folga')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   async function handleInterest(id: string) {
     setBusyId(id)
@@ -101,12 +146,62 @@ export default function FolgasProfissionalPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Folgas</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
-          Solicite folga em um plantão já aceito, ou cubra a folga de um colega. Consulte seu saldo em{' '}
-          <span className="font-medium">Meus Hospitais</span>.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Folgas</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Solicite folga em um plantão já aceito, ou cubra a folga de um colega. Consulte seu saldo em{' '}
+            <span className="font-medium">Meus Hospitais</span>.
+          </p>
+        </div>
+
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Solicitar folga
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Solicitar folga</DialogTitle>
+              <DialogDescription>
+                Escolha um plantão que você já teve aceito. O coordenador avalia e, se aprovar, abre o plantão para cobertura por outro profissional do quadro.
+              </DialogDescription>
+            </DialogHeader>
+            {acceptedApplications.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Você ainda não tem nenhum plantão aceito para solicitar folga.
+              </p>
+            ) : (
+              <>
+                <Select value={selectedShiftId} onValueChange={setSelectedShiftId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o plantão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {acceptedApplications.map((a) => (
+                      <SelectItem key={a.shiftId} value={a.shiftId}>
+                        {a.shift?.title} — {a.shift?.date && format(new Date(a.shift.date), 'dd/MM/yyyy', { locale: ptBR })} ({a.shift?.startTime}–{a.shift?.endTime})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  placeholder="Motivo (opcional)..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={3}
+                />
+              </>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCreate} disabled={creating || acceptedApplications.length === 0}>
+                {creating ? 'Enviando...' : 'Confirmar solicitação'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div>

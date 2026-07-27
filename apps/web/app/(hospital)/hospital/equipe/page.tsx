@@ -42,8 +42,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent } from '@/components/ui/card'
 import { UserPlus, FileWarning } from 'lucide-react'
-import type { HospitalStaff, StaffStatus, ApiError, ApiListResponse } from '@plantoes-medicos/types'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import type { HospitalStaff, StaffStatus, ApiError, ApiListResponse, Absence } from '@plantoes-medicos/types'
+
+const absenceTypeLabel: Record<string, string> = {
+  ATESTADO: 'Atestado',
+  LICENCA: 'Licença',
+  OUTRO: 'Outro',
+}
 
 const statusLabel: Record<StaffStatus, string> = {
   INVITED: 'Convite enviado',
@@ -286,12 +295,17 @@ export default function EquipePage() {
   const [absenceTarget, setAbsenceTarget] = useState<HospitalStaff | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<HospitalStaff | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [absences, setAbsences] = useState<Absence[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiClient.get<ApiListResponse<HospitalStaff>>('/staff/hospital?limit=100')
-      setStaff(res.data)
+      const [staffRes, absencesRes] = await Promise.all([
+        apiClient.get<ApiListResponse<HospitalStaff>>('/staff/hospital?limit=100'),
+        apiClient.get<{ data: Absence[] }>('/absences/hospital').catch(() => ({ data: [] })),
+      ])
+      setStaff(staffRes.data)
+      setAbsences(absencesRes.data)
     } catch {
       toast.error('Erro ao carregar equipe')
     } finally {
@@ -399,6 +413,31 @@ export default function EquipePage() {
           </TableBody>
         </Table>
       </div>
+
+      {!loading && (
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Afastamentos registrados</h2>
+          {absences.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-slate-400">Nenhum afastamento registrado ainda.</CardContent></Card>
+          ) : (
+            <div className="space-y-2">
+              {absences.map((a) => (
+                <Card key={a.id}>
+                  <CardContent className="p-4 text-sm">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="font-medium text-slate-800">{a.professional?.name}</span>
+                      <span className="text-slate-500">
+                        {absenceTypeLabel[a.type] ?? a.type} — {format(new Date(a.startDate), 'dd/MM/yyyy', { locale: ptBR })} a {format(new Date(a.endDate), 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                    </div>
+                    {a.note && <p className="text-slate-500 mt-1">{a.note}</p>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} onInvited={() => void load()} />
 

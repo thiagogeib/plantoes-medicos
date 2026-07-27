@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
@@ -11,10 +12,10 @@ import { PlantaoStatusBadge } from '@/components/shared/plantao/PlantaoStatusBad
 import { CandidaturaCard } from '@/components/shared/candidatura/CandidaturaCard'
 import { Badge } from '@/components/ui/badge'
 import { compensationLabels } from '@/lib/compensation'
-import type { Shift, Application, ApiResponse, ApiListResponse } from '@plantoes-medicos/types'
+import type { Shift, Application, ApiResponse, ApiListResponse, ApiError } from '@plantoes-medicos/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, MapPin, Clock, Users, Trash2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Clock, Users, Trash2, Pencil } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ export default function PlantaoDetailPage() {
   const [loading, setLoading] = useState(true)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -82,6 +85,21 @@ export default function PlantaoDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      await apiClient.del(`/shifts/${id}/permanent`)
+      toast.success('Plantão excluído permanentemente')
+      router.push('/hospital/plantoes')
+    } catch (err) {
+      const error = err as ApiError
+      toast.error(error?.error?.message ?? 'Erro ao excluir plantão')
+    } finally {
+      setDeleting(false)
+      setDeleteOpen(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -103,29 +121,61 @@ export default function PlantaoDetailPage() {
         >
           <ArrowLeft className="h-4 w-4" /> Voltar
         </button>
-        {shift.status === 'OPEN' && (
-          <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
-                <Trash2 className="h-4 w-4 mr-2" /> Cancelar plantão
+        <div className="flex items-center gap-2">
+          {(shift.status === 'OPEN' || shift.status === 'FILLED') && (
+            <Link href={`/hospital/plantoes/${id}/editar`}>
+              <Button variant="outline" size="sm">
+                <Pencil className="h-4 w-4 mr-2" /> Editar
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cancelar plantão</DialogTitle>
-                <DialogDescription>
-                  Tem certeza? Os candidatos pendentes serão notificados do cancelamento.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCancelOpen(false)}>Voltar</Button>
-                <Button variant="destructive" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? 'Cancelando...' : 'Confirmar cancelamento'}
+            </Link>
+          )}
+
+          {shift.filledSlots === 0 ? (
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir plantão
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Excluir plantão permanentemente</DialogTitle>
+                  <DialogDescription>
+                    Como este plantão ainda não tem nenhuma candidatura aceita, ele pode ser excluído por completo — inclusive candidaturas pendentes serão removidas junto. Essa ação não pode ser desfeita.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>Voltar</Button>
+                  <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? 'Excluindo...' : 'Excluir permanentemente'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : shift.status === 'OPEN' && (
+            <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
+                  <Trash2 className="h-4 w-4 mr-2" /> Cancelar plantão
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cancelar plantão</DialogTitle>
+                  <DialogDescription>
+                    Este plantão já tem candidatura aceita, então não pode ser excluído — apenas cancelado. Os candidatos serão notificados do cancelamento.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCancelOpen(false)}>Voltar</Button>
+                  <Button variant="destructive" onClick={handleCancel} disabled={cancelling}>
+                    {cancelling ? 'Cancelando...' : 'Confirmar cancelamento'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       <Card>

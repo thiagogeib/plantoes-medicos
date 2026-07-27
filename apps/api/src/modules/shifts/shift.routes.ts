@@ -11,5 +11,6 @@ shiftRouter.post("/", authenticate, authorize("HOSPITAL"), ShiftController.creat
 shiftRouter.get("/:id", authenticate, ShiftController.getOne)
 shiftRouter.patch("/:id", authenticate, authorize("HOSPITAL"), ShiftController.update)
 shiftRouter.delete("/:id", authenticate, authorize("HOSPITAL"), ShiftController.cancel)
+shiftRouter.delete("/:id/permanent", authenticate, authorize("HOSPITAL"), ShiftController.hardDelete)
 
 shiftRouter.use("/:shiftId/applications", shiftApplicationsRouter)
