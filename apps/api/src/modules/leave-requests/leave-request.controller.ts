@@ -48,6 +48,36 @@ export class LeaveRequestController {
     }
   }
 
+  static async requestCancellation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const professionalId = await getProfessionalId(req.user.userId)
+      const leave = await LeaveRequestService.requestCancellation(req.params.id, professionalId)
+      res.json({ data: leave })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async approveCancellation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const hospitalId = await getHospitalId(req.user.userId)
+      const leave = await LeaveRequestService.decideCancellation(req.params.id, hospitalId, true)
+      res.json({ data: leave })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async rejectCancellation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const hospitalId = await getHospitalId(req.user.userId)
+      const leave = await LeaveRequestService.decideCancellation(req.params.id, hospitalId, false)
+      res.json({ data: leave })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   static async listAvailable(req: Request, res: Response, next: NextFunction) {
     try {
       const professionalId = await getProfessionalId(req.user.userId)

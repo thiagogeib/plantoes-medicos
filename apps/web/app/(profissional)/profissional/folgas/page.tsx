@@ -32,6 +32,7 @@ import type { LeaveRequest, LeaveRequestStatus, Application, ApiError, HospitalS
 const statusLabel: Record<LeaveRequestStatus, string> = {
   PENDING: 'Aguardando coordenador',
   APPROVED_PENDING_COVERAGE: 'Aprovada — aguardando cobertura',
+  CANCELLATION_REQUESTED: 'Cancelamento pedido — aguardando coordenador',
   COVERED: 'Coberta',
   REJECTED: 'Recusada',
   CANCELLED: 'Cancelada',
@@ -40,6 +41,7 @@ const statusLabel: Record<LeaveRequestStatus, string> = {
 const statusVariant: Record<LeaveRequestStatus, 'warning' | 'success' | 'secondary' | 'destructive'> = {
   PENDING: 'warning',
   APPROVED_PENDING_COVERAGE: 'warning',
+  CANCELLATION_REQUESTED: 'warning',
   COVERED: 'success',
   REJECTED: 'destructive',
   CANCELLED: 'secondary',
@@ -153,6 +155,19 @@ export default function FolgasProfissionalPage() {
     }
   }
 
+  async function handleRequestCancellation(id: string) {
+    setBusyId(id)
+    try {
+      await apiClient.patch(`/leave-requests/${id}/request-cancellation`, {})
+      toast.success('Pedido de cancelamento enviado ao coordenador')
+      void load()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao pedir cancelamento')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -256,6 +271,16 @@ export default function FolgasProfissionalPage() {
                     <Button size="sm" variant="outline" onClick={() => handleCancel(leave.id)} disabled={busyId === leave.id}>
                       Cancelar solicitação
                     </Button>
+                  )}
+                  {leave.status === 'APPROVED_PENDING_COVERAGE' && (
+                    <Button size="sm" variant="outline" onClick={() => handleRequestCancellation(leave.id)} disabled={busyId === leave.id}>
+                      Pedir cancelamento
+                    </Button>
+                  )}
+                  {leave.status === 'CANCELLATION_REQUESTED' && (
+                    <p className="text-sm text-slate-500">
+                      Seu pedido de cancelamento está com o coordenador — aguarde a decisão.
+                    </p>
                   )}
                 </CardContent>
               </Card>

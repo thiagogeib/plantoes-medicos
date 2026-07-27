@@ -15,6 +15,7 @@ import type { LeaveRequest, LeaveRequestStatus } from '@plantoes-medicos/types'
 const statusLabel: Record<LeaveRequestStatus, string> = {
   PENDING: 'Aguardando avaliação',
   APPROVED_PENDING_COVERAGE: 'Aprovada — aguardando cobertura',
+  CANCELLATION_REQUESTED: 'Profissional pediu cancelamento',
   COVERED: 'Coberta',
   REJECTED: 'Recusada',
   CANCELLED: 'Cancelada',
@@ -23,6 +24,7 @@ const statusLabel: Record<LeaveRequestStatus, string> = {
 const statusVariant: Record<LeaveRequestStatus, 'warning' | 'success' | 'secondary' | 'destructive'> = {
   PENDING: 'warning',
   APPROVED_PENDING_COVERAGE: 'warning',
+  CANCELLATION_REQUESTED: 'warning',
   COVERED: 'success',
   REJECTED: 'destructive',
   CANCELLED: 'secondary',
@@ -88,6 +90,32 @@ export default function FolgasHospitalPage() {
     }
   }
 
+  async function handleApproveCancellation(id: string) {
+    setBusyId(id)
+    try {
+      await apiClient.patch(`/leave-requests/${id}/approve-cancellation`, {})
+      toast.success('Cancelamento aprovado — folga não vai mais acontecer')
+      void load()
+    } catch {
+      toast.error('Erro ao aprovar cancelamento')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleRejectCancellation(id: string) {
+    setBusyId(id)
+    try {
+      await apiClient.patch(`/leave-requests/${id}/reject-cancellation`, {})
+      toast.success('Pedido de cancelamento recusado — folga continua valendo')
+      void load()
+    } catch {
+      toast.error('Erro ao recusar cancelamento')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -140,7 +168,23 @@ export default function FolgasHospitalPage() {
                   </div>
                 )}
 
-                {leave.status === 'APPROVED_PENDING_COVERAGE' && (
+                {leave.status === 'CANCELLATION_REQUESTED' && (
+                  <div className="flex gap-2 border-t border-slate-100 pt-4">
+                    <Button size="sm" onClick={() => handleApproveCancellation(leave.id)} disabled={busyId === leave.id}>
+                      Aprovar cancelamento
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRejectCancellation(leave.id)}
+                      disabled={busyId === leave.id}
+                    >
+                      Recusar — manter folga
+                    </Button>
+                  </div>
+                )}
+
+                {(leave.status === 'APPROVED_PENDING_COVERAGE' || leave.status === 'CANCELLATION_REQUESTED') && (
                   <div className="border-t border-slate-100 pt-4">
                     <p className="text-sm font-medium text-slate-700 mb-2">
                       Interessados em cobrir ({leave.coverInterests.length})
@@ -155,13 +199,15 @@ export default function FolgasHospitalPage() {
                               <span className="font-medium text-slate-800">{interest.professional?.name}</span>
                               <span className="text-slate-400"> — {interest.professional?.councilType} {interest.professional?.councilNumber}</span>
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleSelectCover(leave.id, interest.id)}
-                              disabled={busyId === leave.id}
-                            >
-                              Confirmar substituto
-                            </Button>
+                            {leave.status === 'APPROVED_PENDING_COVERAGE' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleSelectCover(leave.id, interest.id)}
+                                disabled={busyId === leave.id}
+                              >
+                                Confirmar substituto
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>

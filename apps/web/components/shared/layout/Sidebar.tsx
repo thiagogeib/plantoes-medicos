@@ -17,6 +17,7 @@ import {
   CalendarOff,
   ClipboardList,
   Building2,
+  UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@plantoes-medicos/types'
@@ -36,6 +37,7 @@ const navByRole: Record<UserRole, NavItem[]> = {
     { label: 'Folgas', href: '/hospital/folgas', icon: CalendarOff },
     { label: 'Status do Dia', href: '/hospital/escala-do-dia', icon: ClipboardList },
     { label: 'Histórico', href: '/hospital/historico', icon: History },
+    { label: 'Meu Perfil', href: '/hospital/perfil', icon: UserCircle },
   ],
   PROFESSIONAL: [
     { label: 'Dashboard', href: '/profissional/dashboard', icon: LayoutDashboard },
@@ -44,6 +46,7 @@ const navByRole: Record<UserRole, NavItem[]> = {
     { label: 'Meus Hospitais', href: '/profissional/hospitais', icon: Building2 },
     { label: 'Trocas', href: '/profissional/trocas', icon: Repeat },
     { label: 'Folgas', href: '/profissional/folgas', icon: CalendarOff },
+    { label: 'Meu Perfil', href: '/profissional/perfil', icon: UserCircle },
   ],
   ADMIN: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },

@@ -27,7 +27,13 @@ export class ScheduleStatusService {
       }),
       prisma.leaveRequest.findMany({
         where: {
-          status: { in: [LeaveRequestStatus.APPROVED_PENDING_COVERAGE, LeaveRequestStatus.COVERED] },
+          status: {
+            in: [
+              LeaveRequestStatus.APPROVED_PENDING_COVERAGE,
+              LeaveRequestStatus.CANCELLATION_REQUESTED,
+              LeaveRequestStatus.COVERED,
+            ],
+          },
           shift: { hospitalId, date: targetDate },
         },
         include: {

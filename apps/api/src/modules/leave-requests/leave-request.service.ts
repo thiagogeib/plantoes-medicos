@@ -92,6 +92,60 @@ export class LeaveRequestService {
     })
   }
 
+  static async requestCancellation(id: string, professionalId: string) {
+    const leave = await prisma.leaveRequest.findUnique({ where: { id } })
+    if (!leave) throw new NotFoundError("Solicitação de folga não encontrada")
+    if (leave.professionalId !== professionalId) throw new ForbiddenError("Sem permissão para esta solicitação")
+    if (leave.status !== LeaveRequestStatus.APPROVED_PENDING_COVERAGE) {
+      throw new ConflictError(
+        "Só é possível pedir cancelamento de uma folga já aprovada e ainda sem cobertura confirmada"
+      )
+    }
+
+    return prisma.leaveRequest.update({
+      where: { id },
+      data: { status: LeaveRequestStatus.CANCELLATION_REQUESTED },
+    })
+  }
+
+  static async decideCancellation(id: string, hospitalId: string, approve: boolean) {
+    const leave = await prisma.leaveRequest.findUnique({ where: { id }, include: { shift: true } })
+    if (!leave) throw new NotFoundError("Solicitação de folga não encontrada")
+    if (leave.shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão sobre esta solicitação")
+    if (leave.status !== LeaveRequestStatus.CANCELLATION_REQUESTED) {
+      throw new ConflictError("Não há pedido de cancelamento pendente para esta folga")
+    }
+
+    if (!approve) {
+      return prisma.leaveRequest.update({
+        where: { id },
+        data: { status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE },
+      })
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await tx.leaveCoverInterest.updateMany({
+        where: { leaveRequestId: id, status: SwapInterestStatus.PENDING },
+        data: { status: SwapInterestStatus.REJECTED },
+      })
+
+      const staffLink = await tx.hospitalStaff.findUnique({
+        where: { hospitalId_professionalId: { hospitalId, professionalId: leave.professionalId } },
+      })
+      if (staffLink) {
+        await tx.hospitalStaff.update({
+          where: { id: staffLink.id },
+          data: { availableDaysOff: staffLink.availableDaysOff + 1 },
+        })
+      }
+
+      return tx.leaveRequest.update({
+        where: { id },
+        data: { status: LeaveRequestStatus.CANCELLED },
+      })
+    })
+  }
+
   static async listForHospital(hospitalId: string) {
     return prisma.leaveRequest.findMany({
       where: { shift: { hospitalId } },

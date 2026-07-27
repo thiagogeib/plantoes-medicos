@@ -14,6 +14,7 @@ import { shiftSwapRouter } from "./modules/shift-swap/shift-swap.routes"
 import { leaveRequestRouter } from "./modules/leave-requests/leave-request.routes"
 import { absenceRouter } from "./modules/absences/absence.routes"
 import { scheduleStatusRouter } from "./modules/schedule-status/schedule-status.routes"
+import { hospitalProfileRouter, professionalProfileRouter } from "./modules/profile/profile.routes"
 import { errorHandler } from "./shared/errors/errorHandler"
 import { healthHandler } from "./health"
 
@@ -45,6 +46,8 @@ app.use("/api/v1/auth", authRouter)
 app.use("/api/v1/specialties", specialtyRouter)
 app.use("/api/v1/shifts", shiftRouter)
 app.use("/api/v1/hospitals", hospitalRouter)
+app.use("/api/v1/hospitals", hospitalProfileRouter)
+app.use("/api/v1/professionals", professionalProfileRouter)
 app.use("/api/v1/applications", applicationRouter)
 app.use("/api/v1/admin", adminRouter)
 app.use("/api/v1/public", publicRouter)

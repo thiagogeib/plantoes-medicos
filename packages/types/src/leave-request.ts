@@ -4,6 +4,7 @@ import type { ProfessionalProfile } from './user'
 export type LeaveRequestStatus =
   | 'PENDING'
   | 'APPROVED_PENDING_COVERAGE'
+  | 'CANCELLATION_REQUESTED'
   | 'COVERED'
   | 'REJECTED'
   | 'CANCELLED'
