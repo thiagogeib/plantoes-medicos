@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { useHospitalShifts } from '@/hooks/use-hospital-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
 import { Button } from '@/components/ui/button'
+import { apiClient } from '@/lib/api-client'
 import {
   Select,
   SelectContent,
@@ -13,8 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { ShiftStatus } from '@plantoes-medicos/types'
+import type { ShiftStatus, Shift, ApiError } from '@plantoes-medicos/types'
 
 const STATUS_OPTIONS: { value: ShiftStatus | ''; label: string }[] = [
   { value: '', label: 'Todos os status' },
@@ -29,10 +39,33 @@ export default function HospitalPlantoesPage() {
   const [statusFilter, setStatusFilter] = useState<ShiftStatus | ''>('')
   const [page, setPage] = useState(1)
 
-  const { shifts, totalPages, loading } = useHospitalShifts({
+  const { shifts, totalPages, loading, reload } = useHospitalShifts({
     status: statusFilter,
     page,
   })
+
+  const [confirmTarget, setConfirmTarget] = useState<{ shift: Shift; action: 'delete' | 'cancel' } | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+
+  async function handleConfirm() {
+    if (!confirmTarget) return
+    setConfirmLoading(true)
+    try {
+      if (confirmTarget.action === 'delete') {
+        await apiClient.del(`/shifts/${confirmTarget.shift.id}/permanent`)
+        toast.success('Plantão excluído permanentemente')
+      } else {
+        await apiClient.del(`/shifts/${confirmTarget.shift.id}`)
+        toast.success('Plantão cancelado')
+      }
+      setConfirmTarget(null)
+      void reload()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao processar ação')
+    } finally {
+      setConfirmLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -76,6 +109,21 @@ export default function HospitalPlantoesPage() {
                 key={shift.id}
                 shift={shift}
                 onViewCandidates={() => router.push(`/hospital/plantoes/${shift.id}`)}
+                onEdit={
+                  shift.status === 'OPEN' || shift.status === 'FILLED'
+                    ? () => router.push(`/hospital/plantoes/${shift.id}/editar`)
+                    : undefined
+                }
+                onDelete={
+                  shift.filledSlots === 0
+                    ? () => setConfirmTarget({ shift, action: 'delete' })
+                    : undefined
+                }
+                onCancel={
+                  shift.filledSlots > 0 && shift.status === 'OPEN'
+                    ? () => setConfirmTarget({ shift, action: 'cancel' })
+                    : undefined
+                }
               />
             ))}
         {!loading && shifts.length === 0 && (
@@ -108,6 +156,29 @@ export default function HospitalPlantoesPage() {
           </Button>
         </div>
       )}
+
+      <Dialog open={!!confirmTarget} onOpenChange={(open) => !open && setConfirmTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmTarget?.action === 'delete' ? 'Excluir plantão permanentemente' : 'Cancelar plantão'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmTarget?.action === 'delete'
+                ? 'Como este plantão ainda não tem nenhuma candidatura aceita, ele pode ser excluído por completo — inclusive candidaturas pendentes serão removidas junto. Essa ação não pode ser desfeita.'
+                : 'Este plantão já tem candidatura aceita, então não pode ser excluído — apenas cancelado. Os candidatos serão notificados do cancelamento.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmTarget(null)}>Voltar</Button>
+            <Button variant="destructive" onClick={handleConfirm} disabled={confirmLoading}>
+              {confirmLoading
+                ? 'Processando...'
+                : confirmTarget?.action === 'delete' ? 'Excluir permanentemente' : 'Confirmar cancelamento'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

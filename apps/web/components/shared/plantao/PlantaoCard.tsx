@@ -1,12 +1,18 @@
 import { type FC } from 'react'
 import { format, differenceInHours, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MapPin, Clock, Users, Building2 } from 'lucide-react'
+import { MapPin, Clock, Users, Building2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { PlantaoStatusBadge } from './PlantaoStatusBadge'
 import { compensationLabels } from '@/lib/compensation'
 import type { Shift } from '@plantoes-medicos/types'
@@ -15,9 +21,12 @@ interface PlantaoCardProps {
   shift?: Shift
   onApply?: () => void
   onViewCandidates?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onCancel?: () => void
 }
 
-export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandidates }) => {
+export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandidates, onEdit, onDelete, onCancel }) => {
   if (!shift) {
     return (
       <Card>
@@ -50,6 +59,38 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandid
               <Badge variant="secondary">{shift.specialty.name}</Badge>
             )}
           </div>
+          {(onEdit || onDelete || onCancel) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Pencil className="mr-2 h-4 w-4" /> Editar
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Excluir plantão
+                  </DropdownMenuItem>
+                )}
+                {onCancel && (
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    onClick={onCancel}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Cancelar plantão
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <h3 className="font-semibold text-slate-900 mb-1 line-clamp-1">{shift.title}</h3>
