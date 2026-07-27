@@ -1,6 +1,7 @@
 import type { HospitalProfile, ProfessionalProfile } from './user'
 
 export type StaffStatus = 'INVITED' | 'ACTIVE' | 'INACTIVE'
+export type StaffType = 'FIXO' | 'AVULSO'
 
 export interface HospitalStaff {
   id: string
@@ -12,6 +13,7 @@ export interface HospitalStaff {
     'id' | 'name' | 'cpf' | 'phone' | 'councilType' | 'councilNumber' | 'councilState'
   >
   status: StaffStatus
+  type: StaffType
   hourBankMinutes: number
   availableDaysOff: number
   invitedAt: string
@@ -22,10 +24,15 @@ export interface HospitalStaff {
 
 export interface InviteStaffRequest {
   cpf: string
+  type?: StaffType
 }
 
 export interface RespondInviteRequest {
   accept: boolean
+}
+
+export interface UpdateStaffTypeRequest {
+  type: StaffType
 }
 
 export interface AdjustBalanceRequest {

@@ -1,6 +1,7 @@
 import {
   ApplicationStatus,
   StaffStatus,
+  StaffType,
   LeaveRequestStatus,
   SwapInterestStatus,
 } from "@prisma/client"
@@ -42,6 +43,11 @@ export class LeaveRequestService {
     })
     if (!staffLink || staffLink.status !== StaffStatus.ACTIVE) {
       throw new ForbiddenError("Você não faz parte do quadro deste hospital")
+    }
+    if (staffLink.type !== StaffType.FIXO) {
+      throw new ForbiddenError(
+        "Solicitação de folga é exclusiva para profissionais fixos do quadro. Como plantonista avulso, você pode oferecer este plantão para troca."
+      )
     }
 
     const existing = await prisma.leaveRequest.findFirst({

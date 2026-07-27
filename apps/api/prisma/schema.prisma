@@ -51,6 +51,11 @@ enum StaffStatus {
   INACTIVE
 }
 
+enum StaffType {
+  FIXO
+  AVULSO
+}
+
 enum SwapRequestStatus {
   OPEN
   PENDING_APPROVAL
@@ -235,6 +240,7 @@ model HospitalStaff {
   professionalId   String
   professional     ProfessionalProfile @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   status           StaffStatus         @default(INVITED)
+  type             StaffType           @default(FIXO)
   hourBankMinutes  Int                 @default(0)
   availableDaysOff Int                 @default(0)
   invitedAt        DateTime            @default(now())

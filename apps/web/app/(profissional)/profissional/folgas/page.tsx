@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { LeaveRequest, LeaveRequestStatus, Application, ApiError } from '@plantoes-medicos/types'
+import type { LeaveRequest, LeaveRequestStatus, Application, ApiError, HospitalStaff } from '@plantoes-medicos/types'
 
 const statusLabel: Record<LeaveRequestStatus, string> = {
   PENDING: 'Aguardando coordenador',
@@ -68,6 +68,7 @@ export default function FolgasProfissionalPage() {
   const [available, setAvailable] = useState<LeaveRequest[]>([])
   const [mine, setMine] = useState<LeaveRequest[]>([])
   const [acceptedApplications, setAcceptedApplications] = useState<Application[]>([])
+  const [hasIneligibleAccepted, setHasIneligibleAccepted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
 
@@ -79,14 +80,22 @@ export default function FolgasProfissionalPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [availableRes, mineRes, applicationsRes] = await Promise.all([
+      const [availableRes, mineRes, applicationsRes, staffRes] = await Promise.all([
         apiClient.get<{ data: LeaveRequest[] }>('/leave-requests/available'),
         apiClient.get<{ data: LeaveRequest[] }>('/leave-requests/mine'),
         apiClient.get<{ data: Application[] }>('/applications/me'),
+        apiClient.get<{ data: HospitalStaff[] }>('/staff/me').catch(() => ({ data: [] })),
       ])
       setAvailable(availableRes.data)
       setMine(mineRes.data)
-      setAcceptedApplications(applicationsRes.data.filter((a) => a.status === 'ACCEPTED'))
+
+      const fixoHospitalIds = new Set(
+        staffRes.data.filter((s) => s.status === 'ACTIVE' && s.type === 'FIXO').map((s) => s.hospitalId)
+      )
+      const accepted = applicationsRes.data.filter((a) => a.status === 'ACCEPTED')
+      const eligible = accepted.filter((a) => a.shift?.hospitalId && fixoHospitalIds.has(a.shift.hospitalId))
+      setAcceptedApplications(eligible)
+      setHasIneligibleAccepted(accepted.length > 0 && eligible.length === 0)
     } catch {
       toast.error('Erro ao carregar folgas')
     } finally {
@@ -170,7 +179,9 @@ export default function FolgasProfissionalPage() {
             </DialogHeader>
             {acceptedApplications.length === 0 ? (
               <p className="text-sm text-slate-500">
-                Você ainda não tem nenhum plantão aceito para solicitar folga.
+                {hasIneligibleAccepted
+                  ? 'Solicitação de folga é exclusiva para plantonistas fixos do quadro. Nos hospitais onde você é avulso, use "Oferecer plantão para troca" em vez disso.'
+                  : 'Você ainda não tem nenhum plantão aceito para solicitar folga.'}
               </p>
             ) : (
               <>

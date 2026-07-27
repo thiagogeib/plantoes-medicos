@@ -38,7 +38,7 @@ import {
 import { Building2, MapPin, FileWarning } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import type { HospitalStaff, StaffStatus, ApiError, Absence } from '@plantoes-medicos/types'
+import type { HospitalStaff, StaffStatus, StaffType, ApiError, Absence } from '@plantoes-medicos/types'
 
 const absenceTypeLabel: Record<string, string> = {
   ATESTADO: 'Atestado',
@@ -156,6 +156,11 @@ const statusVariant: Record<StaffStatus, 'warning' | 'success' | 'secondary'> = 
   INACTIVE: 'secondary',
 }
 
+const typeLabel: Record<StaffType, string> = {
+  FIXO: 'Fixo',
+  AVULSO: 'Avulso',
+}
+
 export default function MeusHospitaisPage() {
   const [links, setLinks] = useState<HospitalStaff[]>([])
   const [loading, setLoading] = useState(true)
@@ -231,11 +236,19 @@ export default function MeusHospitaisPage() {
                       <span>{link.hospital?.city}/{link.hospital?.state}</span>
                     </div>
                   </div>
-                  <Badge variant={statusVariant[link.status]}>{statusLabel[link.status]}</Badge>
+                  <div className="flex gap-1.5 items-center shrink-0">
+                    <Badge variant={link.type === 'FIXO' ? 'default' : 'slate'}>{typeLabel[link.type]}</Badge>
+                    <Badge variant={statusVariant[link.status]}>{statusLabel[link.status]}</Badge>
+                  </div>
                 </div>
 
                 {link.status === 'ACTIVE' && (
                   <>
+                    {link.type === 'AVULSO' && (
+                      <p className="text-sm text-slate-500 mt-3">
+                        Como plantonista avulso, você pode oferecer plantões aceitos para troca, mas não solicitar folga.
+                      </p>
+                    )}
                     <div className="flex gap-6 mt-4 text-sm text-slate-600">
                       <div>
                         <span className="text-slate-400">Banco de horas: </span>

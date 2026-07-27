@@ -1,8 +1,8 @@
-import { StaffStatus } from "@prisma/client"
+import { StaffStatus, StaffType } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
-import type { AdjustBalanceInput, StaffFilters } from "./hospital-staff.dto"
+import type { AdjustBalanceInput, StaffFilters, UpdateStaffTypeInput } from "./hospital-staff.dto"
 
 const professionalSelect = {
   id: true,
@@ -15,7 +15,7 @@ const professionalSelect = {
 } as const
 
 export class HospitalStaffService {
-  static async invite(hospitalId: string, cpf: string) {
+  static async invite(hospitalId: string, cpf: string, type?: StaffType) {
     const professional = await prisma.professionalProfile.findUnique({ where: { cpf } })
     if (!professional) throw new NotFoundError("Nenhum profissional encontrado com este CPF")
 
@@ -27,7 +27,7 @@ export class HospitalStaffService {
       if (existing.status === StaffStatus.INACTIVE) {
         return prisma.hospitalStaff.update({
           where: { id: existing.id },
-          data: { status: StaffStatus.INVITED, invitedAt: new Date() },
+          data: { status: StaffStatus.INVITED, invitedAt: new Date(), type: type ?? existing.type },
           include: { professional: { select: professionalSelect } },
         })
       }
@@ -35,7 +35,19 @@ export class HospitalStaffService {
     }
 
     return prisma.hospitalStaff.create({
-      data: { hospitalId, professionalId: professional.id },
+      data: { hospitalId, professionalId: professional.id, type: type ?? StaffType.FIXO },
+      include: { professional: { select: professionalSelect } },
+    })
+  }
+
+  static async updateType(id: string, hospitalId: string, input: UpdateStaffTypeInput) {
+    const staff = await prisma.hospitalStaff.findUnique({ where: { id } })
+    if (!staff) throw new NotFoundError("Vínculo não encontrado")
+    if (staff.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão para gerenciar este vínculo")
+
+    return prisma.hospitalStaff.update({
+      where: { id },
+      data: { type: input.type },
       include: { professional: { select: professionalSelect } },
     })
   }

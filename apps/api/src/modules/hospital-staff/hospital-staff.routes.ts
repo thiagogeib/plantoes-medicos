@@ -33,6 +33,13 @@ hospitalStaffRouter.patch(
   HospitalStaffController.adjustBalance
 )
 
+hospitalStaffRouter.patch(
+  "/:id/type",
+  authenticate,
+  authorize("HOSPITAL"),
+  HospitalStaffController.updateType
+)
+
 hospitalStaffRouter.get(
   "/me",
   authenticate,

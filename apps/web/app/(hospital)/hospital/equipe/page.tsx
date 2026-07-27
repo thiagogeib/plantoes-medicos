@@ -46,7 +46,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { UserPlus, FileWarning } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import type { HospitalStaff, StaffStatus, ApiError, ApiListResponse, Absence } from '@plantoes-medicos/types'
+import type { HospitalStaff, StaffStatus, StaffType, ApiError, ApiListResponse, Absence } from '@plantoes-medicos/types'
 
 const absenceTypeLabel: Record<string, string> = {
   ATESTADO: 'Atestado',
@@ -66,8 +66,19 @@ const statusVariant: Record<StaffStatus, 'warning' | 'success' | 'secondary'> = 
   INACTIVE: 'secondary',
 }
 
+const typeLabel: Record<StaffType, string> = {
+  FIXO: 'Fixo',
+  AVULSO: 'Avulso',
+}
+
+const typeVariant: Record<StaffType, 'default' | 'slate'> = {
+  FIXO: 'default',
+  AVULSO: 'slate',
+}
+
 const inviteSchema = z.object({
   cpf: z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos, sem pontuação'),
+  type: z.enum(['FIXO', 'AVULSO']),
 })
 type InviteValues = z.infer<typeof inviteSchema>
 
@@ -76,7 +87,7 @@ function InviteDialog({ open, onClose, onInvited }: {
   onClose: () => void
   onInvited: () => void
 }) {
-  const form = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { cpf: '' } })
+  const form = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { cpf: '', type: 'FIXO' } })
 
   const onSubmit = async (values: InviteValues) => {
     try {
@@ -105,6 +116,19 @@ function InviteDialog({ open, onClose, onInvited }: {
               <FormItem>
                 <FormLabel>CPF (11 dígitos)</FormLabel>
                 <FormControl><Input placeholder="00000000000" maxLength={11} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="type" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo de vínculo</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="FIXO">Fixo — pode pedir troca e folga</SelectItem>
+                    <SelectItem value="AVULSO">Avulso — pode pedir apenas troca</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )} />
@@ -332,6 +356,17 @@ export default function EquipePage() {
     }
   }
 
+  async function handleToggleType(s: HospitalStaff) {
+    const nextType: StaffType = s.type === 'FIXO' ? 'AVULSO' : 'FIXO'
+    try {
+      await apiClient.patch(`/staff/${s.id}/type`, { type: nextType })
+      toast.success(`Vínculo alterado para ${typeLabel[nextType]}`)
+      void load()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao alterar vínculo')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -353,6 +388,7 @@ export default function EquipePage() {
               <TableHead>Profissional</TableHead>
               <TableHead>Conselho</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Vínculo</TableHead>
               <TableHead>Banco de horas</TableHead>
               <TableHead>Folgas</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -362,14 +398,14 @@ export default function EquipePage() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
+                  {Array.from({ length: 7 }).map((__, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : staff.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-400">
+                <TableCell colSpan={7} className="text-center py-10 text-slate-400">
                   Nenhum profissional no quadro ainda. Convide pelo CPF.
                 </TableCell>
               </TableRow>
@@ -383,6 +419,9 @@ export default function EquipePage() {
                   <TableCell>
                     <Badge variant={statusVariant[s.status]}>{statusLabel[s.status]}</Badge>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant={typeVariant[s.type]}>{typeLabel[s.type]}</Badge>
+                  </TableCell>
                   <TableCell className="text-slate-600 text-sm">
                     {Math.round((s.hourBankMinutes / 60) * 100) / 100}h
                   </TableCell>
@@ -391,6 +430,11 @@ export default function EquipePage() {
                     <Button size="sm" variant="outline" onClick={() => setBalanceTarget(s)}>
                       Ajustar saldo
                     </Button>
+                    {s.status !== 'INACTIVE' && (
+                      <Button size="sm" variant="outline" onClick={() => handleToggleType(s)}>
+                        Marcar como {s.type === 'FIXO' ? 'avulso' : 'fixo'}
+                      </Button>
+                    )}
                     {s.status === 'ACTIVE' && (
                       <Button size="sm" variant="outline" onClick={() => setAbsenceTarget(s)}>
                         <FileWarning className="mr-1.5 h-3.5 w-3.5" /> Afastamento

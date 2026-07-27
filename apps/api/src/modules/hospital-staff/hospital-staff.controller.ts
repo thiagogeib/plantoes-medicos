@@ -4,6 +4,7 @@ import {
   inviteStaffSchema,
   respondInviteSchema,
   adjustBalanceSchema,
+  updateStaffTypeSchema,
   staffFiltersSchema,
 } from "./hospital-staff.dto"
 import { NotFoundError } from "../../shared/errors/AppError"
@@ -25,9 +26,20 @@ export class HospitalStaffController {
   static async invite(req: Request, res: Response, next: NextFunction) {
     try {
       const hospitalId = await getHospitalId(req.user.userId)
-      const { cpf } = inviteStaffSchema.parse(req.body)
-      const staff = await HospitalStaffService.invite(hospitalId, cpf)
+      const { cpf, type } = inviteStaffSchema.parse(req.body)
+      const staff = await HospitalStaffService.invite(hospitalId, cpf, type)
       res.status(201).json({ data: staff })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async updateType(req: Request, res: Response, next: NextFunction) {
+    try {
+      const hospitalId = await getHospitalId(req.user.userId)
+      const data = updateStaffTypeSchema.parse(req.body)
+      const staff = await HospitalStaffService.updateType(req.params.id, hospitalId, data)
+      res.json({ data: staff })
     } catch (error) {
       next(error)
     }

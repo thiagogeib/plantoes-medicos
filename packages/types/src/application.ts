@@ -6,7 +6,7 @@ export type ApplicationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN
 export interface Application {
   id: string
   shiftId: string
-  shift?: Pick<Shift, 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'hospital'>
+  shift?: Pick<Shift, 'hospitalId' | 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'hospital'>
   professionalId: string
   professional?: Pick<ProfessionalProfile, 'name' | 'councilType' | 'councilNumber' | 'specialties'>
   status: ApplicationStatus

@@ -1,12 +1,17 @@
 import { z } from "zod"
-import { StaffStatus } from "@prisma/client"
+import { StaffStatus, StaffType } from "@prisma/client"
 
 export const inviteStaffSchema = z.object({
   cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
+  type: z.nativeEnum(StaffType).optional(),
 })
 
 export const respondInviteSchema = z.object({
   accept: z.boolean(),
+})
+
+export const updateStaffTypeSchema = z.object({
+  type: z.nativeEnum(StaffType, { errorMap: () => ({ message: "Tipo deve ser FIXO ou AVULSO" }) }),
 })
 
 export const adjustBalanceSchema = z
@@ -26,5 +31,6 @@ export const staffFiltersSchema = z.object({
 
 export type InviteStaffInput = z.infer<typeof inviteStaffSchema>
 export type RespondInviteInput = z.infer<typeof respondInviteSchema>
+export type UpdateStaffTypeInput = z.infer<typeof updateStaffTypeSchema>
 export type AdjustBalanceInput = z.infer<typeof adjustBalanceSchema>
 export type StaffFilters = z.infer<typeof staffFiltersSchema>
