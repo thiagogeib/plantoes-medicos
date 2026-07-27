@@ -65,6 +65,10 @@ export class AuthService {
     const valid = await argon2.verify(user.passwordHash, data.password)
     if (!valid) throw new UnauthorizedError("Credenciais inválidas")
 
+    if (user.status !== "ACTIVE") {
+      throw new UnauthorizedError("Conta inativa. Entre em contato com o suporte.")
+    }
+
     const accessToken = issueAccessToken(user.id, user.role)
     const refreshToken = issueRefreshToken(user.id)
     await saveRefreshToken(user.id, refreshToken)

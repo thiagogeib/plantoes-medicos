@@ -1,4 +1,4 @@
-import { ShiftStatus } from "@prisma/client"
+import { ShiftStatus, SwapRequestStatus, LeaveRequestStatus } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError, AppError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
@@ -36,6 +36,10 @@ export class ShiftService {
         ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
         ...(dateTo ? { lte: new Date(dateTo) } : {}),
       }
+    } else if (role === "PROFESSIONAL") {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      where.date = { gte: today }
     }
 
     const [data, total] = await Promise.all([
@@ -157,18 +161,38 @@ export class ShiftService {
     if (input.compensationNote !== undefined) updateData.compensationNote = input.compensationNote
     if (input.coverageForAbsenceId !== undefined) updateData.coverageForAbsenceId = input.coverageForAbsenceId
 
-    return prisma.shift.update({
-      where: { id },
-      data: updateData,
-      include: {
-        specialty: true,
-        hospital: {
-          select: { id: true, name: true, city: true, state: true },
+    const willCancel = input.status === ShiftStatus.CANCELLED && shift.status !== ShiftStatus.CANCELLED
+
+    return prisma.$transaction(async (tx) => {
+      const updatedShift = await tx.shift.update({
+        where: { id },
+        data: updateData,
+        include: {
+          specialty: true,
+          hospital: {
+            select: { id: true, name: true, city: true, state: true },
+          },
+          coverageForAbsence: {
+            include: { professional: { select: { id: true, name: true } } },
+          },
         },
-        coverageForAbsence: {
-          include: { professional: { select: { id: true, name: true } } },
-        },
-      },
+      })
+
+      if (willCancel) {
+        await tx.shiftSwapRequest.updateMany({
+          where: { shiftId: id, status: SwapRequestStatus.OPEN },
+          data: { status: SwapRequestStatus.CANCELLED },
+        })
+        await tx.leaveRequest.updateMany({
+          where: {
+            shiftId: id,
+            status: { in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED_PENDING_COVERAGE] },
+          },
+          data: { status: LeaveRequestStatus.CANCELLED },
+        })
+      }
+
+      return updatedShift
     })
   }
 
@@ -179,9 +203,26 @@ export class ShiftService {
     if (shift.status === ShiftStatus.FILLED) throw new ConflictError("Não é possível cancelar um plantão já preenchido")
     if (shift.status === ShiftStatus.CANCELLED) throw new ConflictError("Plantão já está cancelado")
 
-    return prisma.shift.update({
-      where: { id },
-      data: { status: ShiftStatus.CANCELLED },
+    return prisma.$transaction(async (tx) => {
+      const updatedShift = await tx.shift.update({
+        where: { id },
+        data: { status: ShiftStatus.CANCELLED },
+      })
+
+      await tx.shiftSwapRequest.updateMany({
+        where: { shiftId: id, status: SwapRequestStatus.OPEN },
+        data: { status: SwapRequestStatus.CANCELLED },
+      })
+
+      await tx.leaveRequest.updateMany({
+        where: {
+          shiftId: id,
+          status: { in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED_PENDING_COVERAGE] },
+        },
+        data: { status: LeaveRequestStatus.CANCELLED },
+      })
+
+      return updatedShift
     })
   }
 

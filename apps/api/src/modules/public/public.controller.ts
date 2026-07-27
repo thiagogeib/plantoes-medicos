@@ -26,7 +26,9 @@ export class PublicController {
       const { specialtyId, city, state, page, limit } = listFiltersSchema.parse(req.query)
       const { skip, take } = paginate(page, limit)
 
-      const where: Record<string, unknown> = { status: ShiftStatus.OPEN }
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const where: Record<string, unknown> = { status: ShiftStatus.OPEN, date: { gte: today } }
       if (specialtyId) where.specialtyId = specialtyId
       if (city || state) {
         where.hospital = {

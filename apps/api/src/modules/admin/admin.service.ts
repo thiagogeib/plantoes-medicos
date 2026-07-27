@@ -217,11 +217,35 @@ export class AdminService {
   }
 
   static async deleteUser(id: string) {
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: { hospitalProfile: true, professionalProfile: true },
+    })
     if (!user) throw new NotFoundError("Usuário não encontrado")
     if (user.role === UserRole.ADMIN) {
       throw new AppError("Não é possível excluir um administrador", 400, "BAD_REQUEST")
     }
+
+    if (user.hospitalProfile) {
+      const shiftCount = await prisma.shift.count({ where: { hospitalId: user.hospitalProfile.id } })
+      if (shiftCount > 0) {
+        throw new ConflictError(
+          "Não é possível excluir um hospital com plantões cadastrados. Desative a conta em vez de excluir."
+        )
+      }
+    }
+
+    if (user.professionalProfile) {
+      const applicationCount = await prisma.application.count({
+        where: { professionalId: user.professionalProfile.id },
+      })
+      if (applicationCount > 0) {
+        throw new ConflictError(
+          "Não é possível excluir um profissional com candidaturas registradas. Desative a conta em vez de excluir."
+        )
+      }
+    }
+
     await prisma.user.delete({ where: { id } })
   }
 
