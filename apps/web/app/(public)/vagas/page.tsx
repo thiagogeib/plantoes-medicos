@@ -18,9 +18,16 @@ import {
 import { MapPin, Clock, Users, Search, Stethoscope } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import type { Shift, ApiListResponse } from '@plantoes-medicos/types'
+import type { Shift, ApiListResponse, CompensationType, Turno } from '@plantoes-medicos/types'
 
 interface Specialty { id: string; name: string }
+
+const turnoLabel: Record<Turno, string> = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }
+const compensationLabel: Record<CompensationType, string> = {
+  MONEY: 'Pagamento em dinheiro',
+  HOUR_BANK: 'Banco de horas',
+  OTHER: 'Outra forma',
+}
 
 function ShiftCardSkeleton() {
   return (
@@ -44,6 +51,8 @@ export default function VagasPublicPage() {
   const [specialtyId, setSpecialtyId] = useState('')
   const [cityInput, setCityInput] = useState('')
   const [city, setCity] = useState('')
+  const [turno, setTurno] = useState<Turno | ''>('')
+  const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
 
   useEffect(() => {
     apiClient
@@ -58,6 +67,8 @@ export default function VagasPublicPage() {
       const params = new URLSearchParams({ page: String(page), limit: '12' })
       if (specialtyId) params.set('specialtyId', specialtyId)
       if (city) params.set('city', city)
+      if (turno) params.set('turno', turno)
+      if (compensationType) params.set('compensationType', compensationType)
       const res = await apiClient.get<ApiListResponse<Shift>>(
         `/public/shifts?${params.toString()}`
       )
@@ -68,7 +79,7 @@ export default function VagasPublicPage() {
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, city, page])
+  }, [specialtyId, city, turno, compensationType, page])
 
   useEffect(() => { void load() }, [load])
 
@@ -121,6 +132,42 @@ export default function VagasPublicPage() {
                 <SelectItem value="__all__">Todas as especialidades</SelectItem>
                 {specialties.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 min-w-40">
+            <label className="text-xs text-slate-500 mb-1 block">Turno</label>
+            <Select
+              value={turno}
+              onValueChange={(v) => { setTurno(v === '__all__' ? '' : (v as Turno)); setPage(1) }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Qualquer turno" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Qualquer turno</SelectItem>
+                {(Object.keys(turnoLabel) as Turno[]).map((t) => (
+                  <SelectItem key={t} value={t}>{turnoLabel[t]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 min-w-48">
+            <label className="text-xs text-slate-500 mb-1 block">Compensação</label>
+            <Select
+              value={compensationType}
+              onValueChange={(v) => { setCompensationType(v === '__all__' ? '' : (v as CompensationType)); setPage(1) }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Qualquer compensação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Qualquer compensação</SelectItem>
+                {(Object.keys(compensationLabel) as CompensationType[]).map((c) => (
+                  <SelectItem key={c} value={c}>{compensationLabel[c]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

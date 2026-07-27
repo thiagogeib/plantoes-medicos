@@ -22,3 +22,10 @@ export interface CreateApplicationRequest {
 export interface UpdateApplicationStatusRequest {
   status: 'ACCEPTED' | 'REJECTED'
 }
+
+export interface ProfessionalMonthStats {
+  month: string
+  shiftsCount: number
+  totalHours: number
+  byCompensation: { MONEY: number; HOUR_BANK: number; OTHER: number }
+}

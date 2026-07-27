@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express"
 import { AuthService } from "./auth.service"
-import { LoginDTO, RegisterHospitalDTO, RegisterProfessionalDTO } from "./auth.dto"
+import { LoginDTO, RegisterHospitalDTO, RegisterProfessionalDTO, ForgotPasswordDTO, ResetPasswordDTO } from "./auth.dto"
 
 const REFRESH_COOKIE_NAME = "refreshToken"
 
@@ -79,6 +79,27 @@ export class AuthController {
     try {
       const user = await AuthService.getMe(req.user.userId)
       res.status(200).json({ data: { user } })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  static async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await AuthService.forgotPassword((req.body as ForgotPasswordDTO).email)
+      res.status(200).json({
+        data: { message: "Se este email estiver cadastrado, você receberá um link de redefinição." },
+      })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token, password } = req.body as ResetPasswordDTO
+      await AuthService.resetPassword(token, password)
+      res.status(200).json({ data: { message: "Senha redefinida com sucesso." } })
     } catch (err) {
       next(err)
     }

@@ -70,3 +70,21 @@ export interface ShiftFilters {
   page?: number
   limit?: number
 }
+
+export type Turno = 'MANHA' | 'TARDE' | 'NOITE'
+
+export interface PublicShiftFilters {
+  specialtyId?: string
+  city?: string
+  compensationType?: CompensationType
+  turno?: Turno
+  page?: number
+  limit?: number
+}
+
+export interface PublicStats {
+  hospitals: number
+  professionals: number
+  shiftsFilled: number
+  openShifts: number
+}

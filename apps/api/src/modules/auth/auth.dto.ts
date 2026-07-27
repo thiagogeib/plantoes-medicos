@@ -42,6 +42,17 @@ export const registerProfessionalSchema = z.object({
     .min(1, "Pelo menos uma especialidade deve ser informada"),
 })
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Email inválido"),
+})
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token obrigatório"),
+  password: passwordSchema,
+})
+
 export type LoginDTO = z.infer<typeof loginSchema>
 export type RegisterHospitalDTO = z.infer<typeof registerHospitalSchema>
 export type RegisterProfessionalDTO = z.infer<typeof registerProfessionalSchema>
+export type ForgotPasswordDTO = z.infer<typeof forgotPasswordSchema>
+export type ResetPasswordDTO = z.infer<typeof resetPasswordSchema>

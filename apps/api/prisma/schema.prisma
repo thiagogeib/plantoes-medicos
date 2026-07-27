@@ -97,10 +97,54 @@ model User {
   hospitalProfile     HospitalProfile?
   professionalProfile ProfessionalProfile?
   refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  notifications       Notification[]
 
   @@index([email])
   @@index([role])
   @@index([status])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+enum NotificationType {
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED
+  NEW_APPLICATION
+  SWAP_INTEREST
+  SWAP_APPROVED
+  SWAP_REJECTED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  LEAVE_COVER_INTEREST
+  LEAVE_COVERED
+  LEAVE_CANCELLATION_REQUESTED
+  LEAVE_CANCELLATION_DECIDED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([userId, read])
 }
 
 model RefreshToken {

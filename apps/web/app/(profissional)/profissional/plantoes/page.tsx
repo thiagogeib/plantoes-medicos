@@ -16,17 +16,32 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { apiClient } from '@/lib/api-client'
-import type { Specialty, ApiListResponse } from '@plantoes-medicos/types'
+import type { Specialty, ApiListResponse, CompensationType, Turno } from '@plantoes-medicos/types'
+
+const turnoLabel: Record<Turno, string> = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }
+const compensationLabel: Record<CompensationType, string> = {
+  MONEY: 'Pagamento em dinheiro',
+  HOUR_BANK: 'Banco de horas',
+  OTHER: 'Outra forma',
+}
 
 export default function ProfissionalPlantoesPage() {
   const router = useRouter()
   const [specialtyId, setSpecialtyId] = useState('')
   const [city, setCity] = useState('')
   const [cityInput, setCityInput] = useState('')
+  const [turno, setTurno] = useState<Turno | ''>('')
+  const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
   const [page, setPage] = useState(1)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
 
-  const { shifts, totalPages, loading } = useShifts({ specialtyId, city, page })
+  const { shifts, totalPages, loading } = useShifts({
+    specialtyId,
+    city,
+    turno: turno || undefined,
+    compensationType: compensationType || undefined,
+    page,
+  })
 
   useEffect(() => {
     apiClient
@@ -63,6 +78,46 @@ export default function ProfissionalPlantoesPage() {
             {specialties.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={turno}
+          onValueChange={(val) => {
+            setTurno(val === '__all__' ? '' : (val as Turno))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Turno" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Qualquer turno</SelectItem>
+            {(Object.keys(turnoLabel) as Turno[]).map((t) => (
+              <SelectItem key={t} value={t}>
+                {turnoLabel[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={compensationType}
+          onValueChange={(val) => {
+            setCompensationType(val === '__all__' ? '' : (val as CompensationType))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Compensação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Qualquer compensação</SelectItem>
+            {(Object.keys(compensationLabel) as CompensationType[]).map((c) => (
+              <SelectItem key={c} value={c}>
+                {compensationLabel[c]}
               </SelectItem>
             ))}
           </SelectContent>

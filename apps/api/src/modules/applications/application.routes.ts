@@ -12,6 +12,13 @@ applicationRouter.get(
   ApplicationController.listMyApplications
 )
 
+applicationRouter.get(
+  "/me/stats",
+  authenticate,
+  authorize("PROFESSIONAL"),
+  ApplicationController.myStats
+)
+
 applicationRouter.get("/:id", authenticate, ApplicationController.getOne)
 
 applicationRouter.patch(

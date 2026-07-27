@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { NotificationBell } from './NotificationBell'
 import type { UserRole } from '@plantoes-medicos/types'
 
 const roleLabels: Record<UserRole, string> = {
@@ -38,6 +39,7 @@ export const Header: FC = () => {
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <Avatar className="h-8 w-8">
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>

@@ -5,13 +5,19 @@ import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import type { CreateShiftInput, UpdateShiftInput, ShiftFilters } from "./shift.dto"
 import { notifyProfessionalsAboutNewShift } from "../../shared/services/shift-notification.service"
 
+const TURNO_RANGES: Record<string, { gte: string; lt: string }> = {
+  MANHA: { gte: "00:00", lt: "12:00" },
+  TARDE: { gte: "12:00", lt: "18:00" },
+  NOITE: { gte: "18:00", lt: "24:00" },
+}
+
 export class ShiftService {
   static async listShifts(
     filters: ShiftFilters,
     requestingUserId?: string,
     role?: string
   ) {
-    const { specialtyId, city, state, dateFrom, dateTo, status, page, limit } = filters
+    const { specialtyId, city, state, dateFrom, dateTo, status, compensationType, turno, page, limit } = filters
     const { skip, take } = paginate(page, limit)
 
     const where: Record<string, unknown> = {}
@@ -23,6 +29,8 @@ export class ShiftService {
     }
 
     if (specialtyId) where.specialtyId = specialtyId
+    if (compensationType) where.compensationType = compensationType
+    if (turno) where.startTime = TURNO_RANGES[turno]
 
     if (city || state) {
       where.hospital = {

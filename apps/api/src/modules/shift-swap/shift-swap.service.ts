@@ -1,6 +1,7 @@
 import { ApplicationStatus, StaffStatus, SwapRequestStatus, SwapInterestStatus } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError } from "../../shared/errors/AppError"
+import { notify } from "../../shared/services/notification.service"
 import type { CreateSwapRequestInput } from "./shift-swap.dto"
 
 const shiftInclude = {
@@ -98,7 +99,7 @@ export class ShiftSwapService {
   static async expressInterest(swapRequestId: string, professionalId: string) {
     const swap = await prisma.shiftSwapRequest.findUnique({
       where: { id: swapRequestId },
-      include: { shift: true },
+      include: { shift: true, requestingProfessional: { select: { userId: true } } },
     })
     if (!swap) throw new NotFoundError("Solicitação de troca não encontrada")
     if (swap.status !== SwapRequestStatus.OPEN) throw new ConflictError("Esta solicitação não está mais aberta")
@@ -118,9 +119,19 @@ export class ShiftSwapService {
     })
     if (existing) throw new ConflictError("Você já manifestou interesse nesta troca")
 
-    return prisma.shiftSwapInterest.create({
+    const created = await prisma.shiftSwapInterest.create({
       data: { swapRequestId, professionalId },
     })
+
+    await notify({
+      userId: swap.requestingProfessional.userId,
+      type: "SWAP_INTEREST",
+      title: "Novo interesse na sua troca",
+      message: `Um profissional manifestou interesse em cobrir "${swap.shift.title}"`,
+      link: `/profissional/trocas`,
+    })
+
+    return created
   }
 
   static async cancel(swapRequestId: string, professionalId: string) {
@@ -150,18 +161,21 @@ export class ShiftSwapService {
   static async approve(swapRequestId: string, hospitalId: string, interestId: string) {
     const swap = await prisma.shiftSwapRequest.findUnique({
       where: { id: swapRequestId },
-      include: { shift: true },
+      include: { shift: true, requestingProfessional: { select: { userId: true } } },
     })
     if (!swap) throw new NotFoundError("Solicitação de troca não encontrada")
     if (swap.shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão sobre esta solicitação")
     if (swap.status !== SwapRequestStatus.OPEN) throw new ConflictError("Esta solicitação não está mais aberta")
 
-    const interest = await prisma.shiftSwapInterest.findUnique({ where: { id: interestId } })
+    const interest = await prisma.shiftSwapInterest.findUnique({
+      where: { id: interestId },
+      include: { professional: { select: { userId: true } } },
+    })
     if (!interest || interest.swapRequestId !== swapRequestId) {
       throw new NotFoundError("Manifestação de interesse não encontrada")
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       await tx.shiftSwapInterest.updateMany({
         where: { swapRequestId, id: { not: interestId } },
         data: { status: SwapInterestStatus.REJECTED },
@@ -207,20 +221,47 @@ export class ShiftSwapService {
 
       return updatedSwap
     })
+
+    await notify({
+      userId: interest.professional.userId,
+      type: "SWAP_APPROVED",
+      title: "Troca aprovada",
+      message: `Você foi confirmado para cobrir "${swap.shift.title}"`,
+      link: `/profissional/candidaturas`,
+    })
+    await notify({
+      userId: swap.requestingProfessional.userId,
+      type: "SWAP_APPROVED",
+      title: "Sua troca foi aprovada",
+      message: `Sua solicitação de troca de "${swap.shift.title}" foi aprovada pelo hospital`,
+      link: `/profissional/trocas`,
+    })
+
+    return result
   }
 
   static async reject(swapRequestId: string, hospitalId: string) {
     const swap = await prisma.shiftSwapRequest.findUnique({
       where: { id: swapRequestId },
-      include: { shift: true },
+      include: { shift: true, requestingProfessional: { select: { userId: true } } },
     })
     if (!swap) throw new NotFoundError("Solicitação de troca não encontrada")
     if (swap.shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão sobre esta solicitação")
     if (swap.status !== SwapRequestStatus.OPEN) throw new ConflictError("Esta solicitação não está mais aberta")
 
-    return prisma.shiftSwapRequest.update({
+    const updated = await prisma.shiftSwapRequest.update({
       where: { id: swapRequestId },
       data: { status: SwapRequestStatus.REJECTED },
     })
+
+    await notify({
+      userId: swap.requestingProfessional.userId,
+      type: "SWAP_REJECTED",
+      title: "Troca recusada",
+      message: `Sua solicitação de troca de "${swap.shift.title}" foi recusada pelo hospital`,
+      link: `/profissional/trocas`,
+    })
+
+    return updated
   }
 }

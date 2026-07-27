@@ -56,6 +56,20 @@ export class ApplicationController {
     }
   }
 
+  static async myStats(req: Request, res: Response, next: NextFunction) {
+    try {
+      const professional = await prisma.professionalProfile.findUnique({
+        where: { userId: req.user.userId },
+      })
+      if (!professional) throw new NotFoundError("Perfil profissional não encontrado")
+
+      const stats = await ApplicationService.getMyStats(professional.id)
+      res.json({ data: stats })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   static async getOne(req: Request, res: Response, next: NextFunction) {
     try {
       const application = await ApplicationService.getApplication(

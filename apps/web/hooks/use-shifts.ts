@@ -3,16 +3,25 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
-import type { Shift, ApiListResponse } from '@plantoes-medicos/types'
+import type { Shift, ApiListResponse, CompensationType, Turno } from '@plantoes-medicos/types'
 
 interface UseShiftsOptions {
   specialtyId?: string
   city?: string
+  compensationType?: CompensationType
+  turno?: Turno
   page?: number
   limit?: number
 }
 
-export function useShifts({ specialtyId, city, page = 1, limit = 12 }: UseShiftsOptions = {}) {
+export function useShifts({
+  specialtyId,
+  city,
+  compensationType,
+  turno,
+  page = 1,
+  limit = 12,
+}: UseShiftsOptions = {}) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -27,6 +36,8 @@ export function useShifts({ specialtyId, city, page = 1, limit = 12 }: UseShifts
       })
       if (specialtyId) params.set('specialtyId', specialtyId)
       if (city) params.set('city', city)
+      if (compensationType) params.set('compensationType', compensationType)
+      if (turno) params.set('turno', turno)
 
       const res = await apiClient.get<ApiListResponse<Shift>>(`/shifts?${params.toString()}`)
       setShifts(res.data)
@@ -36,7 +47,7 @@ export function useShifts({ specialtyId, city, page = 1, limit = 12 }: UseShifts
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, city, page, limit])
+  }, [specialtyId, city, compensationType, turno, page, limit])
 
   useEffect(() => {
     void load()

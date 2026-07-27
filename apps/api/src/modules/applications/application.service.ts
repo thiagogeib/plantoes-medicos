@@ -7,6 +7,7 @@ import {
   AppError,
 } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
+import { notify } from "../../shared/services/notification.service"
 import type { CreateApplicationInput, UpdateStatusInput, ApplicationFilters } from "./application.dto"
 
 export class ApplicationService {
@@ -48,7 +49,10 @@ export class ApplicationService {
     professionalId: string,
     input: CreateApplicationInput
   ) {
-    const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
+    const shift = await prisma.shift.findUnique({
+      where: { id: shiftId },
+      include: { hospital: { select: { userId: true } } },
+    })
     if (!shift) throw new NotFoundError("Plantão não encontrado")
 
     if (shift.status === ShiftStatus.FILLED) {
@@ -69,7 +73,7 @@ export class ApplicationService {
     })
     if (existing) throw new ConflictError("Você já se candidatou a este plantão")
 
-    return prisma.application.create({
+    const application = await prisma.application.create({
       data: {
         shiftId,
         professionalId,
@@ -81,6 +85,16 @@ export class ApplicationService {
         },
       },
     })
+
+    await notify({
+      userId: shift.hospital.userId,
+      type: "NEW_APPLICATION",
+      title: "Nova candidatura recebida",
+      message: `Você recebeu uma nova candidatura para "${shift.title}"`,
+      link: `/hospital/plantoes/${shiftId}`,
+    })
+
+    return application
   }
 
   static async listMyApplications(professionalId: string, filters: ApplicationFilters) {
@@ -154,6 +168,7 @@ export class ApplicationService {
         shift: {
           include: { hospital: { select: { userId: true } } },
         },
+        professional: { select: { userId: true } },
       },
     })
 
@@ -174,8 +189,8 @@ export class ApplicationService {
     const newStatus = input.status as ApplicationStatus
 
     if (newStatus === ApplicationStatus.ACCEPTED) {
-      return prisma.$transaction(async (tx) => {
-        const updatedApplication = await tx.application.update({
+      const updatedApplication = await prisma.$transaction(async (tx) => {
+        const updated = await tx.application.update({
           where: { id },
           data: { status: ApplicationStatus.ACCEPTED },
         })
@@ -192,14 +207,72 @@ export class ApplicationService {
           })
         }
 
-        return updatedApplication
+        return updated
       })
+
+      await notify({
+        userId: application.professional.userId,
+        type: "APPLICATION_ACCEPTED",
+        title: "Candidatura aceita",
+        message: `Sua candidatura para "${application.shift.title}" foi aceita`,
+        link: `/profissional/candidaturas`,
+      })
+
+      return updatedApplication
     }
 
-    return prisma.application.update({
+    const updatedApplication = await prisma.application.update({
       where: { id },
       data: { status: newStatus },
     })
+
+    if (newStatus === ApplicationStatus.REJECTED) {
+      await notify({
+        userId: application.professional.userId,
+        type: "APPLICATION_REJECTED",
+        title: "Candidatura recusada",
+        message: `Sua candidatura para "${application.shift.title}" foi recusada`,
+        link: `/profissional/candidaturas`,
+      })
+    }
+
+    return updatedApplication
+  }
+
+  static async getMyStats(professionalId: string) {
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+    const applications = await prisma.application.findMany({
+      where: {
+        professionalId,
+        status: ApplicationStatus.ACCEPTED,
+        shift: { date: { gte: startOfMonth, lt: startOfNextMonth } },
+      },
+      include: {
+        shift: { select: { startTime: true, endTime: true, compensationType: true } },
+      },
+    })
+
+    let totalMinutes = 0
+    const byCompensation = { MONEY: 0, HOUR_BANK: 0, OTHER: 0 }
+
+    for (const app of applications) {
+      const [sh, sm] = app.shift.startTime.split(":").map(Number)
+      const [eh, em] = app.shift.endTime.split(":").map(Number)
+      let minutes = eh * 60 + em - (sh * 60 + sm)
+      if (minutes <= 0) minutes += 24 * 60
+      totalMinutes += minutes
+      byCompensation[app.shift.compensationType] += 1
+    }
+
+    return {
+      month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+      shiftsCount: applications.length,
+      totalHours: Math.round((totalMinutes / 60) * 10) / 10,
+      byCompensation,
+    }
   }
 
   static async withdrawApplication(id: string, professionalUserId: string) {
