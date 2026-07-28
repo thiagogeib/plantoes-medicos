@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
-import { formatCNPJ, formatPhone } from '@/lib/utils'
+import { formatCNPJ, formatPhone, formatCEP } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -83,7 +83,12 @@ export default function CadastroHospitalPage() {
     try {
       const { confirmPassword, ...payload } = values
       void confirmPassword
-      await apiClient.post('/auth/register/hospital', payload)
+      await apiClient.post('/auth/register/hospital', {
+        ...payload,
+        cnpj: payload.cnpj.replace(/\D/g, ''),
+        phone: payload.phone.replace(/\D/g, ''),
+        zipCode: payload.zipCode.replace(/\D/g, ''),
+      })
       toast.success('Hospital cadastrado! Faça o login para continuar.')
       router.push('/login')
     } catch (err) {
@@ -318,7 +323,13 @@ export default function CadastroHospitalPage() {
                       <FormItem>
                         <FormLabel>CEP</FormLabel>
                         <FormControl>
-                          <Input placeholder="00000-000" {...field} />
+                          <Input
+                            placeholder="00000-000"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(formatCEP(e.target.value))
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -22,6 +22,11 @@ export function formatCPF(value: string): string {
     .replace(/\.(\d{3})(\d)/, '.$1-$2')
 }
 
+export function formatCEP(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  return digits.replace(/^(\d{5})(\d)/, '$1-$2')
+}
+
 export function formatPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)
   if (digits.length <= 10) {

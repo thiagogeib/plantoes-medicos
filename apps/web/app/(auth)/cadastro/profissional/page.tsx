@@ -107,7 +107,11 @@ export default function CadastroProfissionalPage() {
     try {
       const { confirmPassword, ...payload } = values
       void confirmPassword
-      await apiClient.post('/auth/register/professional', payload)
+      await apiClient.post('/auth/register/professional', {
+        ...payload,
+        cpf: payload.cpf.replace(/\D/g, ''),
+        phone: payload.phone.replace(/\D/g, ''),
+      })
       toast.success('Profissional cadastrado! Faça o login para continuar.')
       router.push('/login')
     } catch (err) {
