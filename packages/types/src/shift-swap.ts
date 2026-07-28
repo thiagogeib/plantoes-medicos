@@ -21,7 +21,7 @@ export interface ShiftSwapInterest {
 export interface ShiftSwapRequest {
   id: string
   shiftId: string
-  shift?: Pick<Shift, 'id' | 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'specialty' | 'hospital'>
+  shift?: Shift
   requestingProfessionalId: string
   requestingProfessional?: Pick<ProfessionalProfile, 'id' | 'name' | 'councilType' | 'councilNumber'>
   status: SwapRequestStatus

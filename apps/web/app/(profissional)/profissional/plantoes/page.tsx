@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,13 +16,19 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { apiClient } from '@/lib/api-client'
-import type { Specialty, ApiListResponse, CompensationType, Turno } from '@plantoes-medicos/types'
+import type { Specialty, ApiListResponse, CompensationType, Turno, ShiftSwapRequest } from '@plantoes-medicos/types'
 
 const turnoLabel: Record<Turno, string> = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }
 const compensationLabel: Record<CompensationType, string> = {
   MONEY: 'Pagamento em dinheiro',
   HOUR_BANK: 'Banco de horas',
   OTHER: 'Outra forma',
+}
+
+function turnoOf(startTime: string): Turno {
+  if (startTime < '12:00') return 'MANHA'
+  if (startTime < '18:00') return 'TARDE'
+  return 'NOITE'
 }
 
 export default function ProfissionalPlantoesPage() {
@@ -34,6 +40,8 @@ export default function ProfissionalPlantoesPage() {
   const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
   const [page, setPage] = useState(1)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
+  const [swaps, setSwaps] = useState<ShiftSwapRequest[]>([])
+  const [busySwapId, setBusySwapId] = useState<string | null>(null)
 
   const { shifts, totalPages, loading } = useShifts({
     specialtyId,
@@ -43,17 +51,54 @@ export default function ProfissionalPlantoesPage() {
     page,
   })
 
+  const loadSwaps = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ data: ShiftSwapRequest[] }>('/shift-swaps/available')
+      setSwaps(res.data)
+    } catch {
+      // silencioso — não deve travar a busca normal de plantões
+    }
+  }, [])
+
   useEffect(() => {
     apiClient
       .get<ApiListResponse<Specialty>>('/specialties')
       .then((res) => setSpecialties(res.data))
       .catch(() => toast.error('Erro ao carregar especialidades'))
-  }, [])
+    void loadSwaps()
+  }, [loadSwaps])
+
+  const filteredSwaps = useMemo(() => {
+    return swaps.filter((swap) => {
+      if (!swap.shift) return false
+      if (specialtyId && swap.shift.specialtyId !== specialtyId) return false
+      if (turno && turnoOf(swap.shift.startTime) !== turno) return false
+      if (compensationType && swap.shift.compensationType !== compensationType) return false
+      if (city && !swap.shift.hospital?.city?.toLowerCase().includes(city.toLowerCase())) return false
+      return true
+    })
+  }, [swaps, specialtyId, turno, compensationType, city])
 
   const handleSearch = () => {
     setCity(cityInput)
     setPage(1)
   }
+
+  async function handleSwapInterest(swapId: string) {
+    setBusySwapId(swapId)
+    try {
+      await apiClient.post(`/shift-swaps/${swapId}/interest`, {})
+      toast.success('Interesse registrado! O coordenador foi notificado.')
+      void loadSwaps()
+    } catch {
+      toast.error('Erro ao manifestar interesse nesta troca')
+    } finally {
+      setBusySwapId(null)
+    }
+  }
+
+  const showSwaps = page === 1 && filteredSwaps.length > 0
+  const noResults = !loading && shifts.length === 0 && !showSwaps
 
   return (
     <div className="space-y-6">
@@ -139,14 +184,29 @@ export default function ProfissionalPlantoesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {loading
           ? Array.from({ length: 6 }).map((_, i) => <PlantaoCard key={i} />)
-          : shifts.map((shift) => (
-              <PlantaoCard
-                key={shift.id}
-                shift={shift}
-                onApply={() => router.push(`/profissional/plantoes/${shift.id}`)}
-              />
-            ))}
-        {!loading && shifts.length === 0 && (
+          : (
+            <>
+              {showSwaps &&
+                filteredSwaps.map((swap) => (
+                  <PlantaoCard
+                    key={`swap-${swap.id}`}
+                    shift={swap.shift}
+                    isSwapOffer
+                    swapOfferedBy={swap.requestingProfessional?.name}
+                    onApply={() => handleSwapInterest(swap.id)}
+                    applyDisabled={busySwapId === swap.id}
+                  />
+                ))}
+              {shifts.map((shift) => (
+                <PlantaoCard
+                  key={shift.id}
+                  shift={shift}
+                  onApply={() => router.push(`/profissional/plantoes/${shift.id}`)}
+                />
+              ))}
+            </>
+          )}
+        {noResults && (
           <div className="col-span-3 text-center py-16 text-slate-400">
             Nenhum plantão disponível com esses filtros.
           </div>

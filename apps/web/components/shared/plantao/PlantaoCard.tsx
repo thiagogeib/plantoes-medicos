@@ -24,9 +24,22 @@ interface PlantaoCardProps {
   onEdit?: () => void
   onDelete?: () => void
   onCancel?: () => void
+  isSwapOffer?: boolean
+  swapOfferedBy?: string
+  applyDisabled?: boolean
 }
 
-export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandidates, onEdit, onDelete, onCancel }) => {
+export const PlantaoCard: FC<PlantaoCardProps> = ({
+  shift,
+  onApply,
+  onViewCandidates,
+  onEdit,
+  onDelete,
+  onCancel,
+  isSwapOffer,
+  swapOfferedBy,
+  applyDisabled,
+}) => {
   if (!shift) {
     return (
       <Card>
@@ -51,8 +64,12 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandid
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex flex-wrap gap-1.5 items-center">
-            <PlantaoStatusBadge status={shift.status} />
-            {isUrgent && (
+            {isSwapOffer ? (
+              <Badge variant="warning">Disponível por troca</Badge>
+            ) : (
+              <PlantaoStatusBadge status={shift.status} />
+            )}
+            {isUrgent && !isSwapOffer && (
               <Badge variant="warning">Urgente</Badge>
             )}
             {shift.specialty && (
@@ -118,21 +135,28 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({ shift, onApply, onViewCandid
           <Badge variant="outline">{compensationLabels[shift.compensationType]}</Badge>
         </div>
 
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5 text-sm text-slate-600">
-              <Users className="h-4 w-4 text-slate-400" />
-              <span>{shift.filledSlots}/{shift.slots} vagas</span>
-            </div>
-            <span className="text-xs text-slate-400">{fillPercent}%</span>
+        {isSwapOffer ? (
+          <div className="mb-4 flex items-center gap-1.5 text-sm text-slate-600">
+            <Users className="h-4 w-4 text-slate-400" />
+            <span>Oferecido por: {swapOfferedBy ?? 'outro profissional do quadro'}</span>
           </div>
-          <Progress value={fillPercent} className="h-1.5" />
-        </div>
+        ) : (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                <Users className="h-4 w-4 text-slate-400" />
+                <span>{shift.filledSlots}/{shift.slots} vagas</span>
+              </div>
+              <span className="text-xs text-slate-400">{fillPercent}%</span>
+            </div>
+            <Progress value={fillPercent} className="h-1.5" />
+          </div>
+        )}
 
         {(onApply || onViewCandidates) && (
           <div className="flex gap-2 pt-1">
             {onApply && (
-              <Button size="sm" onClick={onApply} className="flex-1">
+              <Button size="sm" onClick={onApply} disabled={applyDisabled} className="flex-1">
                 Candidatar-se
               </Button>
             )}

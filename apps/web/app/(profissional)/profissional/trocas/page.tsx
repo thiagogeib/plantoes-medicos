@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, Building2, Repeat, Plus } from 'lucide-react'
+import { Clock, Building2, Plus } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -65,7 +65,6 @@ function SwapShiftInfo({ swap }: { swap: ShiftSwapRequest }) {
 }
 
 export default function TrocasProfissionalPage() {
-  const [available, setAvailable] = useState<ShiftSwapRequest[]>([])
   const [mine, setMine] = useState<ShiftSwapRequest[]>([])
   const [acceptedApplications, setAcceptedApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,12 +78,10 @@ export default function TrocasProfissionalPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [availableRes, mineRes, applicationsRes] = await Promise.all([
-        apiClient.get<{ data: ShiftSwapRequest[] }>('/shift-swaps/available'),
+      const [mineRes, applicationsRes] = await Promise.all([
         apiClient.get<{ data: ShiftSwapRequest[] }>('/shift-swaps/mine'),
         apiClient.get<{ data: Application[] }>('/applications/me'),
       ])
-      setAvailable(availableRes.data)
       setMine(mineRes.data)
       setAcceptedApplications(applicationsRes.data.filter((a) => a.status === 'ACCEPTED'))
     } catch {
@@ -118,19 +115,6 @@ export default function TrocasProfissionalPage() {
     }
   }
 
-  async function handleInterest(id: string) {
-    setBusyId(id)
-    try {
-      await apiClient.post(`/shift-swaps/${id}/interest`, {})
-      toast.success('Interesse registrado! O coordenador foi notificado.')
-      void load()
-    } catch {
-      toast.error('Erro ao manifestar interesse')
-    } finally {
-      setBusyId(null)
-    }
-  }
-
   async function handleCancel(id: string) {
     setBusyId(id)
     try {
@@ -150,7 +134,8 @@ export default function TrocasProfissionalPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Trocas de Plantão</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Ofereça um plantão aceito para troca, ou manifeste interesse em cobrir a troca de um colega.
+            Ofereça um plantão aceito para troca. Plantões de colegas oferecidos para troca aparecem
+            em <strong>Buscar Plantões</strong>, junto com os demais.
           </p>
         </div>
 
@@ -201,28 +186,6 @@ export default function TrocasProfissionalPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-3">Disponíveis para troca</h2>
-        {loading ? (
-          <Skeleton className="h-24 w-full rounded-xl" />
-        ) : available.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-slate-400">Nenhuma troca disponível no momento.</CardContent></Card>
-        ) : (
-          <div className="space-y-3">
-            {available.map((swap) => (
-              <Card key={swap.id}>
-                <CardContent className="p-5 flex items-start justify-between gap-4 flex-wrap">
-                  <SwapShiftInfo swap={swap} />
-                  <Button size="sm" onClick={() => handleInterest(swap.id)} disabled={busyId === swap.id}>
-                    <Repeat className="mr-2 h-4 w-4" /> Manifestar interesse
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
       </div>
 
       <div>
