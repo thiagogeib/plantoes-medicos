@@ -1,4 +1,7 @@
 import { ApplicationStatus, ShiftStatus } from "@prisma/client"
+
+const DEFAULT_REJECTION_MESSAGE =
+  "Agradecemos seu interesse, mas o plantão foi preenchido por outro profissional."
 import { prisma } from "../../prisma/client"
 import {
   NotFoundError,
@@ -166,7 +169,7 @@ export class ApplicationService {
       where: { id },
       include: {
         shift: {
-          include: { hospital: { select: { userId: true } } },
+          include: { hospital: { select: { userId: true, defaultRejectionMessage: true } } },
         },
         professional: { select: { userId: true } },
       },
@@ -189,7 +192,11 @@ export class ApplicationService {
     const newStatus = input.status as ApplicationStatus
 
     if (newStatus === ApplicationStatus.ACCEPTED) {
-      const updatedApplication = await prisma.$transaction(async (tx) => {
+      if (application.shift.filledSlots >= application.shift.slots) {
+        throw new ConflictError("Este plantão já está com todas as vagas preenchidas")
+      }
+
+      const { updatedApplication, autoRejected } = await prisma.$transaction(async (tx) => {
         const updated = await tx.application.update({
           where: { id },
           data: { status: ApplicationStatus.ACCEPTED },
@@ -200,11 +207,37 @@ export class ApplicationService {
           data: { filledSlots: { increment: 1 } },
         })
 
+        let rejected: { professionalId: string; userId: string }[] = []
+
         if (updatedShift.filledSlots >= updatedShift.slots) {
           await tx.shift.update({
             where: { id: application.shiftId },
             data: { status: ShiftStatus.FILLED },
           })
+
+          const stillPending = await tx.application.findMany({
+            where: {
+              shiftId: application.shiftId,
+              status: ApplicationStatus.PENDING,
+              id: { not: id },
+            },
+            include: { professional: { select: { userId: true } } },
+          })
+
+          if (stillPending.length > 0) {
+            const rejectionReason =
+              application.shift.hospital.defaultRejectionMessage ?? DEFAULT_REJECTION_MESSAGE
+
+            await tx.application.updateMany({
+              where: { id: { in: stillPending.map((a) => a.id) } },
+              data: { status: ApplicationStatus.REJECTED, rejectionReason },
+            })
+
+            rejected = stillPending.map((a) => ({
+              professionalId: a.professionalId,
+              userId: a.professional.userId,
+            }))
+          }
         }
 
         await tx.hospitalStaff.upsert({
@@ -224,7 +257,7 @@ export class ApplicationService {
           update: { status: "ACTIVE" },
         })
 
-        return updated
+        return { updatedApplication: updated, autoRejected: rejected }
       })
 
       await notify({
@@ -234,6 +267,16 @@ export class ApplicationService {
         message: `Sua candidatura para "${application.shift.title}" foi aceita`,
         link: `/profissional/candidaturas`,
       })
+
+      for (const rejectedApp of autoRejected) {
+        await notify({
+          userId: rejectedApp.userId,
+          type: "APPLICATION_REJECTED",
+          title: "Candidatura recusada",
+          message: `Sua candidatura para "${application.shift.title}" foi recusada`,
+          link: `/profissional/candidaturas`,
+        })
+      }
 
       return updatedApplication
     }

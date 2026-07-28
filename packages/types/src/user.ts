@@ -34,6 +34,7 @@ export interface HospitalProfile {
   city: string
   state: string
   zipCode: string
+  defaultRejectionMessage?: string
   createdAt: string
   updatedAt: string
 }

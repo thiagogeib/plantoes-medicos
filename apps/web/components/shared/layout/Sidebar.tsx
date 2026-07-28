@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Building2,
   UserCircle,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@plantoes-medicos/types'
@@ -38,6 +39,7 @@ const navByRole: Record<UserRole, NavItem[]> = {
     { label: 'Status do Dia', href: '/hospital/escala-do-dia', icon: ClipboardList },
     { label: 'Histórico', href: '/hospital/historico', icon: History },
     { label: 'Meu Perfil', href: '/hospital/perfil', icon: UserCircle },
+    { label: 'Configurações', href: '/hospital/configuracoes', icon: Settings },
   ],
   PROFESSIONAL: [
     { label: 'Dashboard', href: '/profissional/dashboard', icon: LayoutDashboard },

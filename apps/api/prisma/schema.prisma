@@ -159,21 +159,22 @@ model RefreshToken {
 }
 
 model HospitalProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
-  cnpj         String   @unique
-  phone        String
-  street       String
-  number       String
-  complement   String?
-  neighborhood String
-  city         String
-  state        String
-  zipCode      String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                    String
+  cnpj                    String   @unique
+  phone                   String
+  street                  String
+  number                  String
+  complement              String?
+  neighborhood            String
+  city                    String
+  state                   String
+  zipCode                 String
+  defaultRejectionMessage String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   shifts   Shift[]
   staff    HospitalStaff[]
@@ -264,15 +265,16 @@ model Shift {
 }
 
 model Application {
-  id             String              @id @default(cuid())
-  shiftId        String
-  shift          Shift               @relation(fields: [shiftId], references: [id])
-  professionalId String
-  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
-  status         ApplicationStatus   @default(PENDING)
-  message        String?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id              String              @id @default(cuid())
+  shiftId         String
+  shift           Shift               @relation(fields: [shiftId], references: [id])
+  professionalId  String
+  professional    ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  status          ApplicationStatus   @default(PENDING)
+  message         String?
+  rejectionReason String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@unique([shiftId, professionalId])
   @@index([shiftId])

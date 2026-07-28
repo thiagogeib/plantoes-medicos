@@ -11,6 +11,7 @@ export interface Application {
   professional?: Pick<ProfessionalProfile, 'name' | 'councilType' | 'councilNumber' | 'specialties'>
   status: ApplicationStatus
   message?: string
+  rejectionReason?: string
   createdAt: string
   updatedAt: string
 }

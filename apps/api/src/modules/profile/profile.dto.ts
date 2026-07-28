@@ -13,6 +13,7 @@ export const updateOwnHospitalProfileSchema = z.object({
   city: z.string().min(1, "Cidade obrigatória").optional(),
   state: z.string().length(2, "Estado deve ter 2 letras").optional(),
   zipCode: z.string().regex(/^\d{8}$/, "CEP deve ter 8 dígitos").optional(),
+  defaultRejectionMessage: z.string().max(500, "Máximo 500 caracteres").optional(),
 })
 
 export const updateOwnProfessionalProfileSchema = z.object({

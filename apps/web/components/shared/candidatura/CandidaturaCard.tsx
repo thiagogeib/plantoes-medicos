@@ -112,6 +112,12 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
           </Badge>
         </div>
 
+        {application.status === 'REJECTED' && application.rejectionReason && (
+          <p className="text-sm text-slate-500 italic mb-2">
+            &ldquo;{application.rejectionReason}&rdquo;
+          </p>
+        )}
+
         {shift && (
           <div className="space-y-1.5 text-sm text-slate-500">
             {shift.hospital && (

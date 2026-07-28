@@ -211,6 +211,7 @@ export class AuthService {
             city: true,
             state: true,
             zipCode: true,
+            defaultRejectionMessage: true,
           },
         },
         professionalProfile: {

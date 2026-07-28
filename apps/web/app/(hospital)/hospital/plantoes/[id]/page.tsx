@@ -58,16 +58,25 @@ export default function PlantaoDetailPage() {
   async function handleStatus(applicationId: string, status: 'ACCEPTED' | 'REJECTED') {
     try {
       await apiClient.patch(`/applications/${applicationId}/status`, { status })
-      setApplications((prev) =>
-        prev.map((a) => (a.id === applicationId ? { ...a, status } : a))
-      )
       toast.success(status === 'ACCEPTED' ? 'Candidato aceito' : 'Candidato recusado')
       if (status === 'ACCEPTED') {
-        const res = await apiClient.get<ApiResponse<Shift>>(`/shifts/${id}`)
-        setShift(res.data)
+        const [shiftRes, appsRes] = await Promise.all([
+          apiClient.get<ApiResponse<Shift>>(`/shifts/${id}`),
+          apiClient.get<ApiListResponse<Application>>(`/shifts/${id}/applications`),
+        ])
+        setShift(shiftRes.data)
+        setApplications(appsRes.data)
+        if (appsRes.data.some((a) => a.status === 'REJECTED' && a.id !== applicationId)) {
+          toast.info('Os demais candidatos pendentes foram recusados automaticamente')
+        }
+      } else {
+        setApplications((prev) =>
+          prev.map((a) => (a.id === applicationId ? { ...a, status } : a))
+        )
       }
-    } catch {
-      toast.error('Erro ao atualizar candidatura')
+    } catch (err) {
+      const error = err as ApiError
+      toast.error(error?.error?.message ?? 'Erro ao atualizar candidatura')
     }
   }
 
