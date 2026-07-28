@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useShifts } from '@/hooks/use-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
@@ -99,6 +100,7 @@ export default function ProfissionalPlantoesPage() {
 
   const showSwaps = page === 1 && filteredSwaps.length > 0
   const noResults = !loading && shifts.length === 0 && !showSwaps
+  const hasActiveFilters = !!(specialtyId || turno || compensationType || city)
 
   return (
     <div className="space-y-6">
@@ -206,7 +208,22 @@ export default function ProfissionalPlantoesPage() {
               ))}
             </>
           )}
-        {noResults && (
+        {noResults && !hasActiveFilters && (
+          <div className="col-span-3 text-center py-16 space-y-3">
+            <Building2 className="h-10 w-10 mx-auto text-slate-300" />
+            <p className="text-slate-500">
+              Você ainda não faz parte do quadro de nenhum hospital.
+            </p>
+            <p className="text-slate-400 text-sm">
+              Busque vagas abertas na vitrine pública e candidate-se — depois de aceito,
+              o hospital passa a aparecer aqui automaticamente.
+            </p>
+            <Link href="/vagas" target="_blank">
+              <Button variant="outline" size="sm">Buscar vagas abertas</Button>
+            </Link>
+          </div>
+        )}
+        {noResults && hasActiveFilters && (
           <div className="col-span-3 text-center py-16 text-slate-400">
             Nenhum plantão disponível com esses filtros.
           </div>

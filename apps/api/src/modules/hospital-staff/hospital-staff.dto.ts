@@ -29,8 +29,17 @@ export const staffFiltersSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
+export const candidateFiltersSchema = z.object({
+  specialtyId: z.string().optional(),
+  city: z.string().optional(),
+  search: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+})
+
 export type InviteStaffInput = z.infer<typeof inviteStaffSchema>
 export type RespondInviteInput = z.infer<typeof respondInviteSchema>
 export type UpdateStaffTypeInput = z.infer<typeof updateStaffTypeSchema>
 export type AdjustBalanceInput = z.infer<typeof adjustBalanceSchema>
 export type StaffFilters = z.infer<typeof staffFiltersSchema>
+export type CandidateFilters = z.infer<typeof candidateFiltersSchema>

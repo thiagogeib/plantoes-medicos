@@ -19,6 +19,13 @@ hospitalStaffRouter.get(
   HospitalStaffController.listHospitalStaff
 )
 
+hospitalStaffRouter.get(
+  "/candidates",
+  authenticate,
+  authorize("HOSPITAL"),
+  HospitalStaffController.listCandidates
+)
+
 hospitalStaffRouter.patch(
   "/:id/deactivate",
   authenticate,

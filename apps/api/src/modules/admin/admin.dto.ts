@@ -33,6 +33,8 @@ export const adminCreateProfessionalSchema = z.object({
   }),
   councilNumber: z.string().min(1, "Número do conselho obrigatório"),
   councilState: z.string().length(2, "Estado do conselho deve ter 2 letras"),
+  city: z.string().min(1).optional(),
+  state: z.string().length(2, "Estado deve ter 2 letras").optional(),
   specialtyIds: z.array(z.string()).min(1, "Pelo menos uma especialidade deve ser informada"),
 })
 
@@ -61,6 +63,8 @@ export const adminUpdateProfessionalSchema = z.object({
   councilType: z.enum(["CRM", "COREN"]).optional(),
   councilNumber: z.string().min(1).optional(),
   councilState: z.string().length(2).optional(),
+  city: z.string().min(1).optional(),
+  state: z.string().length(2).optional(),
   specialtyIds: z.array(z.string()).min(1).optional(),
 })
 

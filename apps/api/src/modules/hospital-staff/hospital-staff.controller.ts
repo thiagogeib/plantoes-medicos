@@ -6,6 +6,7 @@ import {
   adjustBalanceSchema,
   updateStaffTypeSchema,
   staffFiltersSchema,
+  candidateFiltersSchema,
 } from "./hospital-staff.dto"
 import { NotFoundError } from "../../shared/errors/AppError"
 import { prisma } from "../../prisma/client"
@@ -40,6 +41,17 @@ export class HospitalStaffController {
       const data = updateStaffTypeSchema.parse(req.body)
       const staff = await HospitalStaffService.updateType(req.params.id, hospitalId, data)
       res.json({ data: staff })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async listCandidates(req: Request, res: Response, next: NextFunction) {
+    try {
+      const hospitalId = await getHospitalId(req.user.userId)
+      const filters = candidateFiltersSchema.parse(req.query)
+      const result = await HospitalStaffService.listCandidates(hospitalId, filters)
+      res.json(result)
     } catch (error) {
       next(error)
     }

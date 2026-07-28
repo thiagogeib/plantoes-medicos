@@ -23,6 +23,8 @@ export const updateOwnProfessionalProfileSchema = z.object({
   councilType: z.nativeEnum(CouncilType).optional(),
   councilNumber: z.string().min(1, "Número do conselho obrigatório").optional(),
   councilState: z.string().length(2, "Estado do conselho deve ter 2 letras").optional(),
+  city: z.string().min(1).optional(),
+  state: z.string().length(2, "Estado deve ter 2 letras").optional(),
   specialtyIds: z.array(z.string()).min(1, "Selecione ao menos uma especialidade").optional(),
 })
 

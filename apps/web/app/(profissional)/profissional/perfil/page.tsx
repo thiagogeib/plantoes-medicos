@@ -36,6 +36,8 @@ const schema = z.object({
   councilType: z.enum(['CRM', 'COREN']),
   councilNumber: z.string().min(1, 'Obrigatório'),
   councilState: z.string().length(2, 'UF: 2 letras'),
+  city: z.string().optional(),
+  state: z.string().max(2, 'UF: 2 letras').optional(),
   specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
 })
 type FormValues = z.infer<typeof schema>
@@ -47,6 +49,7 @@ interface MeResponse {
       professionalProfile: {
         name: string; cpf: string; phone: string
         councilType: 'CRM' | 'COREN'; councilNumber: string; councilState: string
+        city?: string; state?: string
         specialties: { specialty: { id: string; name: string } }[]
       } | null
     }
@@ -72,6 +75,7 @@ export default function PerfilProfissionalPage() {
           email: user.email,
           name: p.name, cpf: p.cpf, phone: p.phone,
           councilType: p.councilType, councilNumber: p.councilNumber, councilState: p.councilState,
+          city: p.city ?? '', state: p.state ?? '',
           specialtyIds: p.specialties.map((s) => s.specialty.id),
         })
       })
@@ -138,6 +142,14 @@ export default function PerfilProfissionalPage() {
                   )} />
                   <FormField control={form.control} name="councilState" render={({ field }) => (
                     <FormItem className="sm:col-span-2"><FormLabel>Estado do conselho (UF)</FormLabel>
+                      <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="city" render={({ field }) => (
+                    <FormItem><FormLabel>Cidade (opcional)</FormLabel>
+                      <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="state" render={({ field }) => (
+                    <FormItem><FormLabel>UF da cidade</FormLabel>
                       <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>

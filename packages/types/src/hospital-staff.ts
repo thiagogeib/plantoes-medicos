@@ -39,3 +39,23 @@ export interface AdjustBalanceRequest {
   hourBankMinutes?: number
   availableDaysOff?: number
 }
+
+export interface ProfessionalCandidate {
+  id: string
+  name: string
+  cpf: string
+  councilType: 'CRM' | 'COREN'
+  councilNumber: string
+  councilState: string
+  city?: string
+  state?: string
+  specialties: { specialty: { id: string; name: string } }[]
+}
+
+export interface CandidateFilters {
+  specialtyId?: string
+  city?: string
+  search?: string
+  page?: number
+  limit?: number
+}

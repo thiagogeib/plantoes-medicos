@@ -207,6 +207,23 @@ export class ApplicationService {
           })
         }
 
+        await tx.hospitalStaff.upsert({
+          where: {
+            hospitalId_professionalId: {
+              hospitalId: application.shift.hospitalId,
+              professionalId: application.professionalId,
+            },
+          },
+          create: {
+            hospitalId: application.shift.hospitalId,
+            professionalId: application.professionalId,
+            status: "ACTIVE",
+            type: "AVULSO",
+            joinedAt: new Date(),
+          },
+          update: { status: "ACTIVE" },
+        })
+
         return updated
       })
 

@@ -24,6 +24,22 @@ export class ShiftService {
 
     if (role === "PROFESSIONAL") {
       where.status = status ?? ShiftStatus.OPEN
+
+      const professional = requestingUserId
+        ? await prisma.professionalProfile.findUnique({
+            where: { userId: requestingUserId },
+            select: { id: true },
+          })
+        : null
+
+      const staffLinks = professional
+        ? await prisma.hospitalStaff.findMany({
+            where: { professionalId: professional.id, status: "ACTIVE" },
+            select: { hospitalId: true },
+          })
+        : []
+
+      where.hospitalId = { in: staffLinks.map((s) => s.hospitalId) }
     } else if (status) {
       where.status = status
     }

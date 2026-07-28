@@ -194,6 +194,8 @@ model ProfessionalProfile {
   councilType   CouncilType
   councilNumber String
   councilState  String
+  city          String?
+  state         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

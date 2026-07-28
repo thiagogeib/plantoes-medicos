@@ -46,7 +46,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { UserPlus, FileWarning } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import type { HospitalStaff, StaffStatus, StaffType, ApiError, ApiListResponse, Absence } from '@plantoes-medicos/types'
+import type {
+  HospitalStaff,
+  StaffStatus,
+  StaffType,
+  ApiError,
+  ApiListResponse,
+  Absence,
+  Specialty,
+  ProfessionalCandidate,
+} from '@plantoes-medicos/types'
 
 const absenceTypeLabel: Record<string, string> = {
   ATESTADO: 'Atestado',
@@ -88,12 +97,67 @@ function InviteDialog({ open, onClose, onInvited }: {
   onInvited: () => void
 }) {
   const form = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { cpf: '', type: 'FIXO' } })
+  const type = form.watch('type')
 
-  const onSubmit = async (values: InviteValues) => {
+  const [specialties, setSpecialties] = useState<Specialty[]>([])
+  const [specialtyId, setSpecialtyId] = useState('')
+  const [city, setCity] = useState('')
+  const [search, setSearch] = useState('')
+  const [candidates, setCandidates] = useState<ProfessionalCandidate[]>([])
+  const [loadingCandidates, setLoadingCandidates] = useState(false)
+  const [invitingId, setInvitingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    apiClient
+      .get<ApiListResponse<Specialty>>('/specialties')
+      .then((res) => setSpecialties(res.data))
+      .catch(() => {})
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setLoadingCandidates(true)
+    const params = new URLSearchParams({ limit: '20' })
+    if (specialtyId) params.set('specialtyId', specialtyId)
+    if (city) params.set('city', city)
+    if (search) params.set('search', search)
+    apiClient
+      .get<ApiListResponse<ProfessionalCandidate>>(`/staff/candidates?${params.toString()}`)
+      .then((res) => {
+        if (!cancelled) setCandidates(res.data)
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Erro ao buscar profissionais')
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCandidates(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, specialtyId, city, search])
+
+  async function inviteCandidate(cpf: string, id: string) {
+    setInvitingId(id)
+    try {
+      await apiClient.post('/staff/invite', { cpf, type })
+      toast.success('Convite enviado ao profissional')
+      setCandidates((prev) => prev.filter((c) => c.id !== id))
+      onInvited()
+    } catch (err) {
+      toast.error((err as ApiError)?.error?.message ?? 'Erro ao enviar convite')
+    } finally {
+      setInvitingId(null)
+    }
+  }
+
+  const onSubmitCpf = async (values: InviteValues) => {
     try {
       await apiClient.post('/staff/invite', values)
       toast.success('Convite enviado ao profissional')
-      form.reset()
+      form.setValue('cpf', '')
       onInvited()
       onClose()
     } catch (err) {
@@ -103,43 +167,102 @@ function InviteDialog({ open, onClose, onInvited }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Convidar profissional</DialogTitle>
           <DialogDescription>
-            Informe o CPF do profissional já cadastrado na plataforma para adicioná-lo ao seu quadro.
+            Busque entre os profissionais cadastrados na plataforma e convide com um clique.
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="cpf" render={({ field }) => (
-              <FormItem>
-                <FormLabel>CPF (11 dígitos)</FormLabel>
-                <FormControl><Input placeholder="00000000000" maxLength={11} {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="type" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de vínculo</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="FIXO">Fixo — pode pedir troca e folga</SelectItem>
-                    <SelectItem value="AVULSO">Avulso — pode pedir apenas troca</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Enviando...' : 'Enviar convite'}
+          <FormField control={form.control} name="type" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tipo de vínculo (aplicado a quem você convidar)</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="FIXO">Fixo — pode pedir troca e folga</SelectItem>
+                  <SelectItem value="AVULSO">Avulso — pode pedir apenas troca</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )} />
+        </Form>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <Select value={specialtyId} onValueChange={(v) => setSpecialtyId(v === '__all__' ? '' : v)}>
+            <SelectTrigger><SelectValue placeholder="Especialidade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas as especialidades</SelectItem>
+              {specialties.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input placeholder="Cidade" value={city} onChange={(e) => setCity(e.target.value)} />
+          <Input placeholder="Buscar por nome" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+
+        <div className="max-h-72 overflow-y-auto space-y-2 rounded-lg border border-slate-200 p-2">
+          {loadingCandidates ? (
+            <p className="text-sm text-slate-400 text-center py-6">Buscando...</p>
+          ) : candidates.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-6">
+              Nenhum profissional encontrado com esses filtros.
+            </p>
+          ) : (
+            candidates.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 rounded-md border border-slate-100 p-2.5">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900 text-sm truncate">{c.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {c.councilType} {c.councilNumber}
+                    {c.city && ` · ${c.city}${c.state ? '/' + c.state : ''}`}
+                  </p>
+                  {c.specialties.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {c.specialties.map((s) => (
+                        <Badge key={s.specialty.id} variant="secondary" className="text-[10px]">
+                          {s.specialty.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => inviteCandidate(c.cpf, c.id)}
+                  disabled={invitingId === c.id}
+                >
+                  {invitingId === c.id ? 'Convidando...' : 'Convidar'}
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmitCpf)} className="space-y-3 border-t border-slate-100 pt-4">
+            <p className="text-xs text-slate-500">Não encontrou? Convide diretamente pelo CPF:</p>
+            <div className="flex gap-2">
+              <FormField control={form.control} name="cpf" render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl><Input placeholder="CPF (11 dígitos)" maxLength={11} {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <Button type="submit" variant="outline" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Enviando...' : 'Convidar por CPF'}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </Form>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

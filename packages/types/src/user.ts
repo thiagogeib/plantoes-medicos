@@ -47,6 +47,8 @@ export interface ProfessionalProfile {
   councilType: 'CRM' | 'COREN'
   councilNumber: string
   councilState: string
+  city?: string
+  state?: string
   specialties: Specialty[]
   createdAt: string
   updatedAt: string

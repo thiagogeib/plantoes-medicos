@@ -296,6 +296,8 @@ export class AdminService {
               councilType: data.councilType,
               councilNumber: data.councilNumber,
               councilState: data.councilState,
+              city: data.city,
+              state: data.state,
               specialties: {
                 create: data.specialtyIds.map((specialtyId) => ({ specialtyId })),
               },

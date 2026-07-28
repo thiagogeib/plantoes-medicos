@@ -142,6 +142,8 @@ export class AuthService {
               councilType: data.councilType,
               councilNumber: data.councilNumber,
               councilState: data.councilState,
+              city: data.city,
+              state: data.state,
               specialties: {
                 create: data.specialtyIds.map((specialtyId) => ({ specialtyId })),
               },
@@ -220,6 +222,8 @@ export class AuthService {
             councilType: true,
             councilNumber: true,
             councilState: true,
+            city: true,
+            state: true,
             specialties: {
               select: {
                 specialty: { select: { id: true, name: true } },

@@ -42,6 +42,8 @@ const schema = z
     councilType: z.enum(['CRM', 'COREN'], { required_error: 'Selecione o conselho' }),
     councilNumber: z.string().min(1, 'Número do conselho obrigatório'),
     councilState: z.string().length(2, 'UF deve ter 2 letras'),
+    city: z.string().optional(),
+    state: z.string().max(2, 'UF deve ter 2 letras').optional(),
     specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -53,7 +55,7 @@ type FormValues = z.infer<typeof schema>
 
 const STEP_FIELDS: Array<Array<keyof FormValues>> = [
   ['email', 'password', 'confirmPassword'],
-  ['name', 'cpf', 'phone', 'councilType', 'councilNumber', 'councilState', 'specialtyIds'],
+  ['name', 'cpf', 'phone', 'councilType', 'councilNumber', 'councilState', 'city', 'state', 'specialtyIds'],
 ]
 
 export default function CadastroProfissionalPage() {
@@ -74,6 +76,8 @@ export default function CadastroProfissionalPage() {
       councilType: undefined,
       councilNumber: '',
       councilState: '',
+      city: '',
+      state: '',
       specialtyIds: [],
     },
   })
@@ -290,6 +294,41 @@ export default function CadastroProfissionalPage() {
                     <FormField
                       control={form.control}
                       name="councilState"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>UF</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="SP"
+                              maxLength={2}
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(e.target.value.toUpperCase())
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Cidade (opcional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="São Paulo" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="state"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>UF</FormLabel>

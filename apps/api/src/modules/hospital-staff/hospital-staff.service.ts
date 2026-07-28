@@ -2,7 +2,7 @@ import { StaffStatus, StaffType } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
-import type { AdjustBalanceInput, StaffFilters, UpdateStaffTypeInput } from "./hospital-staff.dto"
+import type { AdjustBalanceInput, CandidateFilters, StaffFilters, UpdateStaffTypeInput } from "./hospital-staff.dto"
 
 const professionalSelect = {
   id: true,
@@ -96,6 +96,45 @@ export class HospitalStaffService {
         ...(input.availableDaysOff !== undefined ? { availableDaysOff: input.availableDaysOff } : {}),
       },
     })
+  }
+
+  static async listCandidates(hospitalId: string, filters: CandidateFilters) {
+    const { specialtyId, city, search, page, limit } = filters
+    const { skip, take } = paginate(page, limit)
+
+    const existingLinks = await prisma.hospitalStaff.findMany({
+      where: { hospitalId },
+      select: { professionalId: true },
+    })
+    const excludeIds = existingLinks.map((l) => l.professionalId)
+
+    const where: Record<string, unknown> = { id: { notIn: excludeIds } }
+    if (specialtyId) where.specialties = { some: { specialtyId } }
+    if (city) where.city = { contains: city, mode: "insensitive" }
+    if (search) where.name = { contains: search, mode: "insensitive" }
+
+    const [data, total] = await Promise.all([
+      prisma.professionalProfile.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          cpf: true,
+          councilType: true,
+          councilNumber: true,
+          councilState: true,
+          city: true,
+          state: true,
+          specialties: { include: { specialty: true } },
+        },
+      }),
+      prisma.professionalProfile.count({ where }),
+    ])
+
+    return { data, pagination: paginationMeta(total, page, limit) }
   }
 
   static async listMyLinks(professionalId: string) {
