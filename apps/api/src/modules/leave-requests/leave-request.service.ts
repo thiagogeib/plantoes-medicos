@@ -142,7 +142,11 @@ export class LeaveRequestService {
   }
 
   static async listMine(professionalId: string) {
-    await expireOverdueLeaveRequests({ professionalId })
+    try {
+      await expireOverdueLeaveRequests({ professionalId })
+    } catch (err) {
+      console.error("[listMine] Falha ao expirar leave requests vencidas:", err)
+    }
     return prisma.leaveRequest.findMany({
       where: { professionalId },
       orderBy: { createdAt: "desc" },
@@ -241,7 +245,11 @@ export class LeaveRequestService {
   }
 
   static async listForHospital(hospitalId: string) {
-    await expireOverdueLeaveRequests({ hospitalId })
+    try {
+      await expireOverdueLeaveRequests({ hospitalId })
+    } catch (err) {
+      console.error("[listForHospital] Falha ao expirar leave requests vencidas:", err)
+    }
     return prisma.leaveRequest.findMany({
       where: { shift: { hospitalId } },
       orderBy: { createdAt: "desc" },

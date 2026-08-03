@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
@@ -36,8 +37,6 @@ export default function PlantaoDetailProfissionalPage() {
   const [submitting, setSubmitting] = useState(false)
   const [swapOpen, setSwapOpen] = useState(false)
   const [swapReason, setSwapReason] = useState('')
-  const [leaveOpen, setLeaveOpen] = useState(false)
-  const [leaveReason, setLeaveReason] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -98,20 +97,6 @@ export default function PlantaoDetailProfissionalPage() {
       setSwapReason('')
     } catch (err) {
       toast.error((err as ApiError)?.error?.message ?? 'Erro ao oferecer plantão para troca')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleRequestLeave() {
-    setSubmitting(true)
-    try {
-      await apiClient.post('/leave-requests', { shiftId: id, reason: leaveReason || undefined })
-      toast.success('Solicitação de folga enviada ao coordenador')
-      setLeaveOpen(false)
-      setLeaveReason('')
-    } catch (err) {
-      toast.error((err as ApiError)?.error?.message ?? 'Erro ao solicitar folga')
     } finally {
       setSubmitting(false)
     }
@@ -256,31 +241,9 @@ export default function PlantaoDetailProfissionalPage() {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">Solicitar folga</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Solicitar folga neste plantão</DialogTitle>
-                      <DialogDescription>
-                        O coordenador avalia a solicitação e, se aprovada, abre o plantão para cobertura por outro profissional do quadro.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <Textarea
-                      placeholder="Motivo (opcional)..."
-                      value={leaveReason}
-                      onChange={(e) => setLeaveReason(e.target.value)}
-                      rows={3}
-                    />
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setLeaveOpen(false)}>Cancelar</Button>
-                      <Button onClick={handleRequestLeave} disabled={submitting}>
-                        {submitting ? 'Enviando...' : 'Confirmar solicitação'}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                <Link href="/profissional/folgas">
+                  <Button variant="outline">Solicitar folga</Button>
+                </Link>
               </>
             )}
           </div>

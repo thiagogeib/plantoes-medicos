@@ -37,12 +37,19 @@ export class ScheduleStatusService {
           shift: { hospitalId, date: targetDate },
         },
         include: {
-          shift: { select: { id: true, title: true, startTime: true, endTime: true } },
-          professional: { select: { id: true, name: true } },
-          coverInterests: {
-            where: { status: "SELECTED" },
-            include: { professional: { select: { id: true, name: true } } },
+          shift: {
+            select: {
+              id: true,
+              title: true,
+              startTime: true,
+              endTime: true,
+              applications: {
+                where: { status: "ACCEPTED" },
+                include: { professional: { select: { id: true, name: true } } },
+              },
+            },
           },
+          professional: { select: { id: true, name: true } },
         },
       }),
       prisma.absence.findMany({
@@ -73,14 +80,17 @@ export class ScheduleStatusService {
         from: s.requestingProfessional,
         to: s.interests[0]?.professional ?? null,
       })),
-      leaves: leaves.map((l) => ({
-        id: l.id,
-        shift: l.shift,
-        professional: l.professional,
-        status: l.status,
-        covered: l.status === LeaveRequestStatus.COVERED,
-        coveredBy: l.coverInterests[0]?.professional ?? null,
-      })),
+      leaves: leaves.map((l) => {
+        const { applications, ...shift } = l.shift
+        return {
+          id: l.id,
+          shift,
+          professional: l.professional,
+          status: l.status,
+          covered: l.status === LeaveRequestStatus.COVERED,
+          coveredBy: applications[0]?.professional ?? null,
+        }
+      }),
       absences,
       extraShifts: extraShifts.map((s) => ({
         id: s.id,

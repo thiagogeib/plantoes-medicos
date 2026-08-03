@@ -55,7 +55,11 @@ export class ApplicationService {
     professionalId: string,
     input: CreateApplicationInput
   ) {
-    await expireOverdueLeaveRequests({ shiftId })
+    try {
+      await expireOverdueLeaveRequests({ shiftId })
+    } catch (err) {
+      console.error("[applyToShift] Falha ao expirar leave requests vencidas:", err)
+    }
 
     const shift = await prisma.shift.findUnique({
       where: { id: shiftId },
