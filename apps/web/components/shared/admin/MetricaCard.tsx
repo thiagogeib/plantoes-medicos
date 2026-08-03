@@ -56,15 +56,32 @@ export const MetricaCard: FC<MetricaCardProps> = ({
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={cn('rounded-lg p-2.5', colors.bg)}>
-            <Icon className={cn('h-5 w-5', colors.icon)} />
+      <CardContent className="p-3 sm:p-6">
+        <div className="sm:hidden">
+          <div className="flex items-center gap-2">
+            <div className={cn('rounded-lg p-1.5 shrink-0', colors.bg)}>
+              <Icon className={cn('h-4 w-4', colors.icon)} />
+            </div>
+            <div className={cn('text-lg font-bold leading-none', colors.text)}>{value}</div>
+            {trend && (
+              <div className="ml-auto shrink-0">
+                <TrendIcon trend={trend} />
+              </div>
+            )}
           </div>
-          {trend && <TrendIcon trend={trend} />}
+          <p className="text-[11px] leading-snug text-slate-500 mt-1.5">{title}</p>
         </div>
-        <div className={cn('text-3xl font-bold mb-1', colors.text)}>{value}</div>
-        <p className="text-sm text-slate-500">{title}</p>
+
+        <div className="hidden sm:block">
+          <div className="flex items-center justify-between mb-4">
+            <div className={cn('rounded-lg p-2.5', colors.bg)}>
+              <Icon className={cn('h-5 w-5', colors.icon)} />
+            </div>
+            {trend && <TrendIcon trend={trend} />}
+          </div>
+          <div className={cn('text-3xl font-bold mb-1', colors.text)}>{value}</div>
+          <p className="text-sm text-slate-500">{title}</p>
+        </div>
       </CardContent>
     </Card>
   )

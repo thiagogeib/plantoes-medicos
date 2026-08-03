@@ -14,7 +14,7 @@ export default function HospitalDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-500 text-sm mt-0.5">Visão geral dos seus plantões</p>
@@ -25,12 +25,12 @@ export default function HospitalDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
         {loading ? (
           <>
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
+            <Skeleton className="h-16 sm:h-32" />
+            <Skeleton className="h-16 sm:h-32" />
+            <Skeleton className="h-16 sm:h-32" />
           </>
         ) : (
           <>

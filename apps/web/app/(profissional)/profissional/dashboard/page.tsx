@@ -40,12 +40,12 @@ export default function ProfissionalDashboardPage() {
         <p className="text-slate-500 text-sm mt-0.5">Suas candidaturas e atividades recentes</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
         {loading ? (
           <>
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
+            <Skeleton className="h-16 sm:h-32" />
+            <Skeleton className="h-16 sm:h-32" />
+            <Skeleton className="h-16 sm:h-32" />
           </>
         ) : (
           <>

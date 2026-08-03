@@ -501,14 +501,14 @@ export default function EquipePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Minha Equipe</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             Profissionais vinculados ao seu quadro — habilitados para trocas de plantão e solicitações de folga.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
           <Button variant="outline" onClick={handleExportHours}>
             <Download className="mr-2 h-4 w-4" /> Exportar horas (CSV)
           </Button>

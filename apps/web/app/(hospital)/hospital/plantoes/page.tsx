@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Plus, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { useHospitalShifts } from '@/hooks/use-hospital-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
 import { Button } from '@/components/ui/button'
@@ -49,6 +49,8 @@ export default function HospitalPlantoesPage() {
   const [hasCandidates, setHasCandidates] = useState<'true' | 'false' | ''>('')
   const [page, setPage] = useState(1)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const hasActiveFilters = !!(statusFilter || specialtyId || compensationType || date || diaSemana !== '' || hasCandidates)
 
   useEffect(() => {
     apiClient
@@ -92,12 +94,12 @@ export default function HospitalPlantoesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Plantões</h1>
           <p className="text-slate-500 text-sm mt-0.5">Gerencie os plantões do seu hospital</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <BulkUploadDialog
             triggerLabel="Upload em massa"
             title="Publicar plantões em massa"
@@ -114,7 +116,19 @@ export default function HospitalPlantoesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <Button
+        variant="outline"
+        size="sm"
+        className="sm:hidden"
+        onClick={() => setFiltersOpen((v) => !v)}
+      >
+        <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+        Filtros
+        {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-blue-600" />}
+        <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+      </Button>
+
+      <div className={`flex-wrap items-center gap-3 ${filtersOpen ? 'flex' : 'hidden sm:flex'}`}>
         <Select
           value={statusFilter}
           onValueChange={(val) => {
@@ -122,7 +136,7 @@ export default function HospitalPlantoesPage() {
             setPage(1)
           }}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>
           <SelectContent>
@@ -141,7 +155,7 @@ export default function HospitalPlantoesPage() {
             setPage(1)
           }}
         >
-          <SelectTrigger className="w-52">
+          <SelectTrigger className="w-full sm:w-52">
             <SelectValue placeholder="Especialidade" />
           </SelectTrigger>
           <SelectContent>
@@ -159,7 +173,7 @@ export default function HospitalPlantoesPage() {
             setPage(1)
           }}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Compensação" />
           </SelectTrigger>
           <SelectContent>
@@ -177,7 +191,7 @@ export default function HospitalPlantoesPage() {
             setPage(1)
           }}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Dia da semana" />
           </SelectTrigger>
           <SelectContent>
@@ -190,7 +204,7 @@ export default function HospitalPlantoesPage() {
 
         <Input
           type="date"
-          className="w-40"
+          className="w-full sm:w-40"
           value={date}
           onChange={(e) => {
             setDate(e.target.value)
@@ -205,7 +219,7 @@ export default function HospitalPlantoesPage() {
             setPage(1)
           }}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Candidatos" />
           </SelectTrigger>
           <SelectContent>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Building2, LayoutGrid, List as ListIcon } from 'lucide-react'
+import { Search, Building2, LayoutGrid, List as ListIcon, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useShifts } from '@/hooks/use-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
@@ -53,6 +53,7 @@ export default function ProfissionalPlantoesPage() {
   const [swaps, setSwaps] = useState<ShiftSwapRequest[]>([])
   const [busySwapId, setBusySwapId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [applyingBulk, setApplyingBulk] = useState(false)
 
@@ -156,29 +157,42 @@ export default function ProfissionalPlantoesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Buscar Plantões</h1>
           <p className="text-slate-500 text-sm mt-0.5">Encontre plantões disponíveis para se candidatar</p>
         </div>
-        <div className="flex gap-1 border rounded-md p-0.5">
+        <div className="flex items-center gap-2">
           <Button
+            variant="outline"
             size="sm"
-            variant={viewMode === 'card' ? 'default' : 'ghost'}
-            className="h-8 w-8 p-0"
-            onClick={() => setViewMode('card')}
-            aria-label="Ver em cards"
+            className="sm:hidden"
+            onClick={() => setFiltersOpen((v) => !v)}
           >
-            <LayoutGrid className="h-4 w-4" />
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+            Filtros
+            {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-blue-600" />}
+            <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
           </Button>
-          <Button
-            size="sm"
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
-            className="h-8 w-8 p-0"
-            onClick={() => setViewMode('list')}
-            aria-label="Ver em lista"
-          >
-            <ListIcon className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-1 border rounded-md p-0.5">
+            <Button
+              size="sm"
+              variant={viewMode === 'card' ? 'default' : 'ghost'}
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('card')}
+              aria-label="Ver em cards"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('list')}
+              aria-label="Ver em lista"
+            >
+              <ListIcon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <div className={`flex-col sm:flex-row gap-3 flex-wrap ${filtersOpen ? 'flex' : 'hidden sm:flex'}`}>
         <Select
           value={specialtyId}
           onValueChange={(val) => {
