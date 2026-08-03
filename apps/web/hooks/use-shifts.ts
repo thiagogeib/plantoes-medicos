@@ -10,6 +10,7 @@ interface UseShiftsOptions {
   city?: string
   compensationType?: CompensationType
   turno?: Turno
+  raioKm?: number
   page?: number
   limit?: number
 }
@@ -19,6 +20,7 @@ export function useShifts({
   city,
   compensationType,
   turno,
+  raioKm,
   page = 1,
   limit = 12,
 }: UseShiftsOptions = {}) {
@@ -38,6 +40,7 @@ export function useShifts({
       if (city) params.set('city', city)
       if (compensationType) params.set('compensationType', compensationType)
       if (turno) params.set('turno', turno)
+      if (raioKm) params.set('raioKm', String(raioKm))
 
       const res = await apiClient.get<ApiListResponse<Shift>>(`/shifts?${params.toString()}`)
       setShifts(res.data)
@@ -47,7 +50,7 @@ export function useShifts({
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, city, compensationType, turno, page, limit])
+  }, [specialtyId, city, compensationType, turno, raioKm, page, limit])
 
   useEffect(() => {
     void load()

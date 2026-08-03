@@ -44,6 +44,7 @@ const schema = z
     councilState: z.string().length(2, 'UF deve ter 2 letras'),
     city: z.string().optional(),
     state: z.string().max(2, 'UF deve ter 2 letras').optional(),
+    zipCode: z.string().optional(),
     specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -55,7 +56,7 @@ type FormValues = z.infer<typeof schema>
 
 const STEP_FIELDS: Array<Array<keyof FormValues>> = [
   ['email', 'password', 'confirmPassword'],
-  ['name', 'cpf', 'phone', 'councilType', 'councilNumber', 'councilState', 'city', 'state', 'specialtyIds'],
+  ['name', 'cpf', 'phone', 'councilType', 'councilNumber', 'councilState', 'city', 'state', 'zipCode', 'specialtyIds'],
 ]
 
 export default function CadastroProfissionalPage() {
@@ -78,6 +79,7 @@ export default function CadastroProfissionalPage() {
       councilState: '',
       city: '',
       state: '',
+      zipCode: '',
       specialtyIds: [],
     },
   })
@@ -115,6 +117,7 @@ export default function CadastroProfissionalPage() {
         ...payload,
         cpf: payload.cpf.replace(/\D/g, ''),
         phone: payload.phone.replace(/\D/g, ''),
+        zipCode: payload.zipCode ? payload.zipCode : undefined,
       })
       toast.success('Profissional cadastrado! Faça o login para continuar.')
       router.push('/login')
@@ -347,6 +350,26 @@ export default function CadastroProfissionalPage() {
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="zipCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CEP (opcional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Só números"
+                            maxLength={8}
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-slate-500">Usado para mostrar plantões próximos de você.</p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}

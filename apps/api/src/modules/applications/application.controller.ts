@@ -108,4 +108,13 @@ export class ApplicationController {
       next(error)
     }
   }
+
+  static async confirm(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await ApplicationService.confirmApplication(req.params.id, req.user.userId)
+      res.json({ data: result })
+    } catch (error) {
+      next(error)
+    }
+  }
 }

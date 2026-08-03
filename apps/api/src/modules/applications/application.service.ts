@@ -1,4 +1,4 @@
-import { ApplicationStatus, ShiftStatus } from "@prisma/client"
+import { ApplicationStatus, ShiftStatus, ChargeStatus } from "@prisma/client"
 
 const DEFAULT_REJECTION_MESSAGE =
   "Agradecemos seu interesse, mas o plantão foi preenchido por outro profissional."
@@ -11,6 +11,7 @@ import {
 } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import { notify } from "../../shared/services/notification.service"
+import { getPlatformFeeCents, createPaymentPreference } from "../../shared/services/payment.service"
 import type { CreateApplicationInput, UpdateStatusInput, ApplicationFilters } from "./application.dto"
 
 export class ApplicationService {
@@ -57,6 +58,16 @@ export class ApplicationService {
       include: { hospital: { select: { userId: true } } },
     })
     if (!shift) throw new NotFoundError("Plantão não encontrado")
+
+    const professional = await prisma.professionalProfile.findUnique({
+      where: { id: professionalId },
+      select: { councilType: true },
+    })
+    if (!professional) throw new NotFoundError("Perfil profissional não encontrado")
+    if (professional.councilType !== shift.requiredCouncilType) {
+      const label = shift.requiredCouncilType === "CRM" ? "médicos (CRM)" : "enfermeiros (COREN)"
+      throw new ForbiddenError(`Esta vaga é exclusiva para ${label}`)
+    }
 
     if (shift.status === ShiftStatus.FILLED) {
       throw new ConflictError("Plantão já está preenchido")
@@ -181,7 +192,10 @@ export class ApplicationService {
       throw new ForbiddenError("Sem permissão para atualizar esta candidatura")
     }
 
-    if (application.status !== ApplicationStatus.PENDING) {
+    if (
+      application.status !== ApplicationStatus.PENDING &&
+      application.status !== ApplicationStatus.PENDING_CONFIRMATION
+    ) {
       throw new AppError(
         "Apenas candidaturas pendentes podem ter o status alterado",
         422,
@@ -192,53 +206,33 @@ export class ApplicationService {
     const newStatus = input.status as ApplicationStatus
 
     if (newStatus === ApplicationStatus.ACCEPTED) {
-      if (application.shift.filledSlots >= application.shift.slots) {
-        throw new ConflictError("Este plantão já está com todas as vagas preenchidas")
+      if (application.status !== ApplicationStatus.PENDING) {
+        throw new AppError(
+          "Esta candidatura já foi aprovada e aguarda confirmação do profissional",
+          422,
+          "UNPROCESSABLE"
+        )
       }
 
-      const { updatedApplication, autoRejected } = await prisma.$transaction(async (tx) => {
+      const reservedCount = await prisma.application.count({
+        where: {
+          shiftId: application.shiftId,
+          status: { in: [ApplicationStatus.PENDING_CONFIRMATION, ApplicationStatus.ACCEPTED] },
+        },
+      })
+      if (reservedCount >= application.shift.slots) {
+        throw new ConflictError(
+          "Este plantão já está com todas as vagas reservadas ou preenchidas"
+        )
+      }
+
+      // Aprovar a candidatura = aprovar o profissional como parte da equipe do hospital.
+      // A vaga só é efetivamente preenchida quando o profissional confirmar e pagar a taxa.
+      const updatedApplication = await prisma.$transaction(async (tx) => {
         const updated = await tx.application.update({
           where: { id },
-          data: { status: ApplicationStatus.ACCEPTED },
+          data: { status: ApplicationStatus.PENDING_CONFIRMATION },
         })
-
-        const updatedShift = await tx.shift.update({
-          where: { id: application.shiftId },
-          data: { filledSlots: { increment: 1 } },
-        })
-
-        let rejected: { professionalId: string; userId: string }[] = []
-
-        if (updatedShift.filledSlots >= updatedShift.slots) {
-          await tx.shift.update({
-            where: { id: application.shiftId },
-            data: { status: ShiftStatus.FILLED },
-          })
-
-          const stillPending = await tx.application.findMany({
-            where: {
-              shiftId: application.shiftId,
-              status: ApplicationStatus.PENDING,
-              id: { not: id },
-            },
-            include: { professional: { select: { userId: true } } },
-          })
-
-          if (stillPending.length > 0) {
-            const rejectionReason =
-              application.shift.hospital.defaultRejectionMessage ?? DEFAULT_REJECTION_MESSAGE
-
-            await tx.application.updateMany({
-              where: { id: { in: stillPending.map((a) => a.id) } },
-              data: { status: ApplicationStatus.REJECTED, rejectionReason },
-            })
-
-            rejected = stillPending.map((a) => ({
-              professionalId: a.professionalId,
-              userId: a.professional.userId,
-            }))
-          }
-        }
 
         await tx.hospitalStaff.upsert({
           where: {
@@ -257,33 +251,29 @@ export class ApplicationService {
           update: { status: "ACTIVE" },
         })
 
-        return { updatedApplication: updated, autoRejected: rejected }
+        return updated
       })
 
       await notify({
         userId: application.professional.userId,
-        type: "APPLICATION_ACCEPTED",
-        title: "Candidatura aceita",
-        message: `Sua candidatura para "${application.shift.title}" foi aceita`,
+        type: "APPLICATION_PENDING_CONFIRMATION",
+        title: "Você foi aprovado! Confirme sua vaga",
+        message: `O hospital aprovou você para "${application.shift.title}". Confirme e pague a taxa de confirmação para garantir a vaga.`,
         link: `/profissional/candidaturas`,
       })
-
-      for (const rejectedApp of autoRejected) {
-        await notify({
-          userId: rejectedApp.userId,
-          type: "APPLICATION_REJECTED",
-          title: "Candidatura recusada",
-          message: `Sua candidatura para "${application.shift.title}" foi recusada`,
-          link: `/profissional/candidaturas`,
-        })
-      }
 
       return updatedApplication
     }
 
     const updatedApplication = await prisma.application.update({
       where: { id },
-      data: { status: newStatus },
+      data: {
+        status: newStatus,
+        rejectionReason:
+          newStatus === ApplicationStatus.REJECTED
+            ? application.shift.hospital.defaultRejectionMessage ?? undefined
+            : undefined,
+      },
     })
 
     if (newStatus === ApplicationStatus.REJECTED) {
@@ -297,6 +287,161 @@ export class ApplicationService {
     }
 
     return updatedApplication
+  }
+
+  /**
+   * Profissional confirma a vaga após ser aprovado pelo hospital. Gera (ou reaproveita)
+   * uma cobrança e retorna o link de checkout do Mercado Pago. A candidatura só vira
+   * ACCEPTED de fato quando o webhook de pagamento confirmar (ver finalizeConfirmedApplication).
+   */
+  static async confirmApplication(id: string, professionalUserId: string) {
+    const application = await prisma.application.findUnique({
+      where: { id },
+      include: {
+        shift: { select: { id: true, title: true, hospitalId: true } },
+        professional: { select: { id: true, userId: true } },
+        charge: true,
+      },
+    })
+
+    if (!application) throw new NotFoundError("Candidatura não encontrada")
+    if (application.professional.userId !== professionalUserId) {
+      throw new ForbiddenError("Sem permissão para confirmar esta candidatura")
+    }
+    if (application.status !== ApplicationStatus.PENDING_CONFIRMATION) {
+      throw new AppError(
+        "Esta candidatura não está aguardando confirmação",
+        422,
+        "UNPROCESSABLE"
+      )
+    }
+
+    const professionalUser = await prisma.user.findUnique({
+      where: { id: professionalUserId },
+      select: { email: true },
+    })
+    if (!professionalUser) throw new NotFoundError("Usuário não encontrado")
+
+    const amountCents = application.charge?.amountCents ?? getPlatformFeeCents()
+
+    const charge = await prisma.charge.upsert({
+      where: { applicationId: id },
+      create: {
+        applicationId: id,
+        professionalId: application.professional.id,
+        amountCents,
+        status: ChargeStatus.PENDING,
+      },
+      update: { status: ChargeStatus.PENDING },
+    })
+
+    const { preferenceId, checkoutUrl } = await createPaymentPreference({
+      chargeId: charge.id,
+      amountCents: charge.amountCents,
+      description: `Taxa de confirmação — ${application.shift.title}`,
+      payerEmail: professionalUser.email,
+    })
+
+    await prisma.charge.update({
+      where: { id: charge.id },
+      data: { providerPreferenceId: preferenceId },
+    })
+
+    return { application, charge, checkoutUrl }
+  }
+
+  /**
+   * Chamado pelo webhook do Mercado Pago quando um pagamento é aprovado.
+   * Confirma a candidatura, preenche a vaga e rejeita as demais candidaturas
+   * pendentes/reservadas se o plantão esgotar as vagas.
+   */
+  static async finalizeConfirmedApplication(chargeId: string, providerPaymentId: string) {
+    const charge = await prisma.charge.findUnique({
+      where: { id: chargeId },
+      include: {
+        application: {
+          include: {
+            shift: { include: { hospital: { select: { userId: true, defaultRejectionMessage: true } } } },
+          },
+        },
+      },
+    })
+    if (!charge) return null
+    if (charge.status === ChargeStatus.PAID) return charge
+
+    const application = charge.application
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.charge.update({
+        where: { id: charge.id },
+        data: { status: ChargeStatus.PAID, paidAt: new Date(), providerPaymentId },
+      })
+
+      const updatedApplication = await tx.application.update({
+        where: { id: application.id },
+        data: { status: ApplicationStatus.ACCEPTED },
+      })
+
+      const updatedShift = await tx.shift.update({
+        where: { id: application.shiftId },
+        data: { filledSlots: { increment: 1 } },
+      })
+
+      let rejected: { professionalId: string; userId: string }[] = []
+
+      if (updatedShift.filledSlots >= updatedShift.slots) {
+        await tx.shift.update({
+          where: { id: application.shiftId },
+          data: { status: ShiftStatus.FILLED },
+        })
+
+        const stillReserved = await tx.application.findMany({
+          where: {
+            shiftId: application.shiftId,
+            status: { in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION] },
+            id: { not: application.id },
+          },
+          include: { professional: { select: { userId: true } } },
+        })
+
+        if (stillReserved.length > 0) {
+          const rejectionReason =
+            application.shift.hospital.defaultRejectionMessage ?? DEFAULT_REJECTION_MESSAGE
+
+          await tx.application.updateMany({
+            where: { id: { in: stillReserved.map((a) => a.id) } },
+            data: { status: ApplicationStatus.REJECTED, rejectionReason },
+          })
+
+          rejected = stillReserved.map((a) => ({
+            professionalId: a.professionalId,
+            userId: a.professional.userId,
+          }))
+        }
+      }
+
+      return { updatedApplication, autoRejected: rejected, hospitalUserId: application.shift.hospital.userId }
+    })
+
+    await notify({
+      userId: result.hospitalUserId,
+      type: "APPLICATION_CONFIRMED",
+      title: "Vaga confirmada",
+      message: `O profissional confirmou e pagou a taxa para "${application.shift.title}"`,
+      link: `/hospital/plantoes/${application.shiftId}`,
+    })
+
+    for (const rejectedApp of result.autoRejected) {
+      await notify({
+        userId: rejectedApp.userId,
+        type: "APPLICATION_REJECTED",
+        title: "Candidatura recusada",
+        message: `Sua candidatura para "${application.shift.title}" foi recusada`,
+        link: `/profissional/candidaturas`,
+      })
+    }
+
+    return charge
   }
 
   static async getMyStats(professionalId: string) {
@@ -349,7 +494,10 @@ export class ApplicationService {
       throw new ForbiddenError("Sem permissão para cancelar esta candidatura")
     }
 
-    if (application.status !== ApplicationStatus.PENDING) {
+    if (
+      application.status !== ApplicationStatus.PENDING &&
+      application.status !== ApplicationStatus.PENDING_CONFIRMATION
+    ) {
       throw new AppError(
         "Apenas candidaturas pendentes podem ser canceladas",
         422,
@@ -357,9 +505,16 @@ export class ApplicationService {
       )
     }
 
-    return prisma.application.update({
-      where: { id },
-      data: { status: ApplicationStatus.WITHDRAWN },
+    return prisma.$transaction(async (tx) => {
+      await tx.charge.updateMany({
+        where: { applicationId: id, status: ChargeStatus.PENDING },
+        data: { status: ChargeStatus.CANCELLED },
+      })
+
+      return tx.application.update({
+        where: { id },
+        data: { status: ApplicationStatus.WITHDRAWN },
+      })
     })
   }
 }

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,14 @@ interface PlantaoCardProps {
   isSwapOffer?: boolean
   swapOfferedBy?: string
   applyDisabled?: boolean
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
+}
+
+const councilLabel: Record<string, string> = {
+  CRM: 'Médico (CRM)',
+  COREN: 'Enfermeiro (COREN)',
 }
 
 export const PlantaoCard: FC<PlantaoCardProps> = ({
@@ -39,6 +48,9 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({
   isSwapOffer,
   swapOfferedBy,
   applyDisabled,
+  selectable,
+  selected,
+  onToggleSelect,
 }) => {
   if (!shift) {
     return (
@@ -60,10 +72,18 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({
   const fillPercent = shift.slots > 0 ? Math.round((shift.filledSlots / shift.slots) * 100) : 0
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${selected ? 'ring-2 ring-primary' : ''}`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex flex-wrap gap-1.5 items-center">
+            {selectable && (
+              <Checkbox
+                checked={!!selected}
+                onCheckedChange={onToggleSelect}
+                className="mr-1"
+                aria-label="Selecionar vaga"
+              />
+            )}
             {isSwapOffer ? (
               <Badge variant="warning">Disponível por troca</Badge>
             ) : (
@@ -74,6 +94,9 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({
             )}
             {shift.specialty && (
               <Badge variant="secondary">{shift.specialty.name}</Badge>
+            )}
+            {shift.requiredCouncilType && (
+              <Badge variant="outline">{councilLabel[shift.requiredCouncilType]}</Badge>
             )}
           </div>
           {(onEdit || onDelete || onCancel) && (
@@ -119,6 +142,12 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({
             <span className="text-slate-300">•</span>
             <MapPin className="h-4 w-4 shrink-0" />
             <span>{shift.hospital.city}</span>
+            {typeof shift.distanceKm === 'number' && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span>{shift.distanceKm} km</span>
+              </>
+            )}
           </div>
         )}
 

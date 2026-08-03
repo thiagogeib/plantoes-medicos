@@ -16,6 +16,7 @@ const listFiltersSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   compensationType: z.enum(["MONEY", "HOUR_BANK", "OTHER"]).optional(),
+  requiredCouncilType: z.enum(["CRM", "COREN"]).optional(),
   turno: z.enum(["MANHA", "TARDE", "NOITE"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(12),
@@ -31,7 +32,7 @@ const shiftInclude = {
 export class PublicController {
   static async listShifts(req: Request, res: Response, next: NextFunction) {
     try {
-      const { specialtyId, city, state, compensationType, turno, page, limit } =
+      const { specialtyId, city, state, compensationType, requiredCouncilType, turno, page, limit } =
         listFiltersSchema.parse(req.query)
       const { skip, take } = paginate(page, limit)
 
@@ -40,6 +41,7 @@ export class PublicController {
       const where: Record<string, unknown> = { status: ShiftStatus.OPEN, date: { gte: today } }
       if (specialtyId) where.specialtyId = specialtyId
       if (compensationType) where.compensationType = compensationType
+      if (requiredCouncilType) where.requiredCouncilType = requiredCouncilType
       if (turno) where.startTime = TURNO_RANGES[turno]
       if (city || state) {
         where.hospital = {

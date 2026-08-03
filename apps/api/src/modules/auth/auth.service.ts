@@ -4,6 +4,7 @@ import crypto from "crypto"
 import { prisma } from "../../prisma/client"
 import { AppError, ConflictError, UnauthorizedError } from "../../shared/errors/AppError"
 import { sendPasswordResetEmail } from "../../shared/services/email.service"
+import { geocodeByZipCode } from "../../shared/services/geocoding.service"
 import { LoginDTO, RegisterHospitalDTO, RegisterProfessionalDTO } from "./auth.dto"
 import { Prisma, UserRole } from "@prisma/client"
 
@@ -119,6 +120,14 @@ export class AuthService {
       const refreshToken = issueRefreshToken(user.id)
       await saveRefreshToken(user.id, refreshToken)
 
+      const geo = await geocodeByZipCode(data.zipCode)
+      if (geo) {
+        await prisma.hospitalProfile.update({
+          where: { userId: user.id },
+          data: { latitude: geo.latitude, longitude: geo.longitude },
+        })
+      }
+
       return { accessToken, refreshToken, user }
     } catch (err) {
       handlePrismaConflict(err)
@@ -144,6 +153,7 @@ export class AuthService {
               councilState: data.councilState,
               city: data.city,
               state: data.state,
+              zipCode: data.zipCode,
               specialties: {
                 create: data.specialtyIds.map((specialtyId) => ({ specialtyId })),
               },
@@ -156,6 +166,16 @@ export class AuthService {
       const accessToken = issueAccessToken(user.id, user.role)
       const refreshToken = issueRefreshToken(user.id)
       await saveRefreshToken(user.id, refreshToken)
+
+      if (data.zipCode) {
+        const geo = await geocodeByZipCode(data.zipCode)
+        if (geo) {
+          await prisma.professionalProfile.update({
+            where: { userId: user.id },
+            data: { latitude: geo.latitude, longitude: geo.longitude },
+          })
+        }
+      }
 
       return { accessToken, refreshToken, user }
     } catch (err) {
@@ -211,6 +231,8 @@ export class AuthService {
             city: true,
             state: true,
             zipCode: true,
+            latitude: true,
+            longitude: true,
             defaultRejectionMessage: true,
           },
         },
@@ -225,6 +247,9 @@ export class AuthService {
             councilState: true,
             city: true,
             state: true,
+            zipCode: true,
+            latitude: true,
+            longitude: true,
             specialties: {
               select: {
                 specialty: { select: { id: true, name: true } },

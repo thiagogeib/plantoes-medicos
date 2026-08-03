@@ -29,9 +29,17 @@ enum ShiftStatus {
 
 enum ApplicationStatus {
   PENDING
+  PENDING_CONFIRMATION
   ACCEPTED
   REJECTED
   WITHDRAWN
+}
+
+enum ChargeStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
 }
 
 enum CouncilType {
@@ -120,6 +128,8 @@ model PasswordResetToken {
 enum NotificationType {
   APPLICATION_ACCEPTED
   APPLICATION_REJECTED
+  APPLICATION_PENDING_CONFIRMATION
+  APPLICATION_CONFIRMED
   NEW_APPLICATION
   SWAP_INTEREST
   SWAP_APPROVED
@@ -173,6 +183,8 @@ model HospitalProfile {
   state                   String
   zipCode                 String
   defaultRejectionMessage String?
+  latitude                Float?
+  longitude               Float?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -197,6 +209,9 @@ model ProfessionalProfile {
   councilState  String
   city          String?
   state         String?
+  zipCode       String?
+  latitude      Float?
+  longitude     Float?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -208,6 +223,7 @@ model ProfessionalProfile {
   leaveRequests       LeaveRequest[]
   leaveCoverInterests LeaveCoverInterest[]
   absences            Absence[]
+  charges             Charge[]
 
   @@index([cpf])
   @@index([councilNumber])
@@ -236,6 +252,7 @@ model Shift {
   hospital             HospitalProfile  @relation(fields: [hospitalId], references: [id])
   specialtyId          String
   specialty            Specialty        @relation(fields: [specialtyId], references: [id])
+  requiredCouncilType  CouncilType      @default(CRM)
   title                String
   description          String
   date                 DateTime         @db.Date
@@ -276,8 +293,29 @@ model Application {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
+  charge Charge?
+
   @@unique([shiftId, professionalId])
   @@index([shiftId])
+  @@index([professionalId])
+  @@index([status])
+}
+
+model Charge {
+  id                  String       @id @default(cuid())
+  applicationId       String       @unique
+  application         Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  professionalId      String
+  professional        ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  amountCents         Int
+  status              ChargeStatus @default(PENDING)
+  provider            String       @default("mercadopago")
+  providerPreferenceId String?
+  providerPaymentId   String?
+  paidAt              DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
   @@index([professionalId])
   @@index([status])
 }

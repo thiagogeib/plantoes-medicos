@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useMyApplications } from '@/hooks/use-my-applications'
 import { CandidaturaCard } from '@/components/shared/candidatura/CandidaturaCard'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { apiClient } from '@/lib/api-client'
 import {
   Select,
   SelectContent,
@@ -12,24 +14,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ApplicationStatus } from '@plantoes-medicos/types'
+import type { ApplicationStatus, ApiError } from '@plantoes-medicos/types'
 
 const STATUS_OPTIONS: { value: ApplicationStatus | ''; label: string }[] = [
   { value: '', label: 'Todos os status' },
   { value: 'PENDING', label: 'Pendente' },
-  { value: 'ACCEPTED', label: 'Aceito' },
+  { value: 'PENDING_CONFIRMATION', label: 'Aguardando confirmação' },
+  { value: 'ACCEPTED', label: 'Confirmado' },
   { value: 'REJECTED', label: 'Recusado' },
   { value: 'WITHDRAWN', label: 'Retirado' },
 ]
 
+interface ConfirmResponse {
+  data: { checkoutUrl: string }
+}
+
 export default function CandidaturasPage() {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('')
   const [page, setPage] = useState(1)
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
 
   const { applications, totalPages, loading } = useMyApplications({
     status: statusFilter,
     page,
   })
+
+  async function handleConfirm(id: string) {
+    setConfirmingId(id)
+    try {
+      const res = await apiClient.post<ConfirmResponse>(`/applications/${id}/confirm`, {})
+      window.location.href = res.data.checkoutUrl
+    } catch (err) {
+      const error = err as ApiError
+      if (error?.error?.code === 'PAYMENT_NOT_CONFIGURED') {
+        toast.error('O pagamento da taxa de confirmação ainda não está disponível. Tente novamente mais tarde.')
+      } else {
+        toast.error(error?.error?.message ?? 'Erro ao iniciar a confirmação')
+      }
+    } finally {
+      setConfirmingId(null)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -72,7 +97,13 @@ export default function CandidaturasPage() {
       ) : (
         <div className="space-y-3">
           {applications.map((app) => (
-            <CandidaturaCard key={app.id} application={app} variant="profissional" />
+            <CandidaturaCard
+              key={app.id}
+              application={app}
+              variant="profissional"
+              onConfirm={handleConfirm}
+              confirmLoading={confirmingId === app.id}
+            />
           ))}
         </div>
       )}

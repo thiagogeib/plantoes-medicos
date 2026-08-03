@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { ConflictError } from "../../shared/errors/AppError"
+import { geocodeByZipCode } from "../../shared/services/geocoding.service"
 import type { UpdateOwnHospitalProfileInput, UpdateOwnProfessionalProfileInput } from "./profile.dto"
 
 function handlePrismaConflict(err: unknown): never {
@@ -18,7 +19,7 @@ export class ProfileService {
   static async updateOwnHospital(userId: string, input: UpdateOwnHospitalProfileInput) {
     const { email, ...profileData } = input
     try {
-      return await prisma.user.update({
+      const result = await prisma.user.update({
         where: { id: userId },
         data: {
           ...(email ? { email } : {}),
@@ -29,6 +30,22 @@ export class ProfileService {
           hospitalProfile: true,
         },
       })
+
+      if (input.zipCode) {
+        const geo = await geocodeByZipCode(input.zipCode)
+        if (geo) {
+          await prisma.hospitalProfile.update({
+            where: { userId },
+            data: { latitude: geo.latitude, longitude: geo.longitude },
+          })
+          if (result.hospitalProfile) {
+            result.hospitalProfile.latitude = geo.latitude
+            result.hospitalProfile.longitude = geo.longitude
+          }
+        }
+      }
+
+      return result
     } catch (err) {
       handlePrismaConflict(err)
     }
@@ -41,7 +58,7 @@ export class ProfileService {
       : undefined
 
     try {
-      return await prisma.user.update({
+      const result = await prisma.user.update({
         where: { id: userId },
         data: {
           ...(email ? { email } : {}),
@@ -59,6 +76,22 @@ export class ProfileService {
           },
         },
       })
+
+      if (input.zipCode) {
+        const geo = await geocodeByZipCode(input.zipCode)
+        if (geo) {
+          await prisma.professionalProfile.update({
+            where: { userId },
+            data: { latitude: geo.latitude, longitude: geo.longitude },
+          })
+          if (result.professionalProfile) {
+            result.professionalProfile.latitude = geo.latitude
+            result.professionalProfile.longitude = geo.longitude
+          }
+        }
+      }
+
+      return result
     } catch (err) {
       handlePrismaConflict(err)
     }

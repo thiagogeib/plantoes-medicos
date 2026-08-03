@@ -4,12 +4,15 @@ export type ShiftStatus = 'OPEN' | 'FILLED' | 'CANCELLED' | 'COMPLETED'
 
 export type CompensationType = 'MONEY' | 'HOUR_BANK' | 'OTHER'
 
+export type CouncilType = 'CRM' | 'COREN'
+
 export interface Shift {
   id: string
   hospitalId: string
-  hospital?: Pick<HospitalProfile, 'name' | 'city' | 'state'>
+  hospital?: Pick<HospitalProfile, 'name' | 'city' | 'state'> & { latitude?: number | null; longitude?: number | null }
   specialtyId: string
   specialty?: Specialty
+  requiredCouncilType: CouncilType
   title: string
   description: string
   date: string
@@ -27,6 +30,7 @@ export interface Shift {
     type: string
     professional: { id: string; name: string }
   }
+  distanceKm?: number
   createdAt: string
   updatedAt: string
 }
@@ -35,6 +39,7 @@ export interface CreateShiftRequest {
   title: string
   description: string
   specialtyId: string
+  requiredCouncilType: CouncilType
   date: string
   startTime: string
   endTime: string
@@ -49,6 +54,7 @@ export interface UpdateShiftRequest {
   title?: string
   description?: string
   specialtyId?: string
+  requiredCouncilType?: CouncilType
   date?: string
   startTime?: string
   endTime?: string
@@ -67,6 +73,8 @@ export interface ShiftFilters {
   dateFrom?: string
   dateTo?: string
   status?: ShiftStatus
+  requiredCouncilType?: CouncilType
+  raioKm?: number
   page?: number
   limit?: number
 }
@@ -77,6 +85,7 @@ export interface PublicShiftFilters {
   specialtyId?: string
   city?: string
   compensationType?: CompensationType
+  requiredCouncilType?: CouncilType
   turno?: Turno
   page?: number
   limit?: number

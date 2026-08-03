@@ -1,7 +1,19 @@
 import type { Shift } from './shift'
 import type { ProfessionalProfile } from './user'
 
-export type ApplicationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
+export type ApplicationStatus = 'PENDING' | 'PENDING_CONFIRMATION' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
+
+export type ChargeStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
+
+export interface Charge {
+  id: string
+  applicationId: string
+  amountCents: number
+  status: ChargeStatus
+  paidAt?: string
+  createdAt: string
+  updatedAt: string
+}
 
 export interface Application {
   id: string
@@ -12,6 +24,7 @@ export interface Application {
   status: ApplicationStatus
   message?: string
   rejectionReason?: string
+  charge?: Charge
   createdAt: string
   updatedAt: string
 }

@@ -41,6 +41,9 @@ const schema = z.object({
   title: z.string().min(3, 'Título obrigatório'),
   description: z.string().min(10, 'Descrição muito curta'),
   specialtyId: z.string().min(1, 'Especialidade obrigatória'),
+  requiredCouncilType: z.enum(['CRM', 'COREN'], {
+    errorMap: () => ({ message: 'Selecione o perfil exigido' }),
+  }),
   date: z.string().min(1, 'Data obrigatória'),
   startTime: z.string().min(1, 'Horário de início obrigatório'),
   endTime: z.string().min(1, 'Horário de término obrigatório'),
@@ -69,6 +72,7 @@ export default function NovoPlantaoPage() {
       title: '',
       description: '',
       specialtyId: '',
+      requiredCouncilType: 'CRM',
       date: '',
       startTime: '',
       endTime: '',
@@ -196,6 +200,31 @@ export default function NovoPlantaoPage() {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="requiredCouncilType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Perfil exigido</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="CRM">Médico (CRM)</SelectItem>
+                        <SelectItem value="COREN">Enfermeiro (COREN)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Só profissionais com esse perfil poderão ver e se candidatar a esta vaga.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

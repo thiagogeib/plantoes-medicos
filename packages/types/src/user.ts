@@ -34,6 +34,8 @@ export interface HospitalProfile {
   city: string
   state: string
   zipCode: string
+  latitude?: number | null
+  longitude?: number | null
   defaultRejectionMessage?: string
   createdAt: string
   updatedAt: string
@@ -50,6 +52,9 @@ export interface ProfessionalProfile {
   councilState: string
   city?: string
   state?: string
+  zipCode?: string
+  latitude?: number | null
+  longitude?: number | null
   specialties: Specialty[]
   createdAt: string
   updatedAt: string

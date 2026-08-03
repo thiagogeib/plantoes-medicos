@@ -3,6 +3,7 @@ import { UserRole, UserStatus, Prisma } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, AppError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
+import { geocodeByZipCode } from "../../shared/services/geocoding.service"
 import {
   AdminCreateHospitalInput,
   AdminCreateProfessionalInput,
@@ -274,6 +275,15 @@ export class AdminService {
         },
         select: { id: true, email: true, role: true, status: true, createdAt: true, updatedAt: true },
       })
+
+      const geo = await geocodeByZipCode(data.zipCode)
+      if (geo) {
+        await prisma.hospitalProfile.update({
+          where: { userId: user.id },
+          data: { latitude: geo.latitude, longitude: geo.longitude },
+        })
+      }
+
       return user
     } catch (err) {
       handlePrismaConflict(err)
@@ -298,6 +308,7 @@ export class AdminService {
               councilState: data.councilState,
               city: data.city,
               state: data.state,
+              zipCode: data.zipCode,
               specialties: {
                 create: data.specialtyIds.map((specialtyId) => ({ specialtyId })),
               },
@@ -306,6 +317,17 @@ export class AdminService {
         },
         select: { id: true, email: true, role: true, status: true, createdAt: true, updatedAt: true },
       })
+
+      if (data.zipCode) {
+        const geo = await geocodeByZipCode(data.zipCode)
+        if (geo) {
+          await prisma.professionalProfile.update({
+            where: { userId: user.id },
+            data: { latitude: geo.latitude, longitude: geo.longitude },
+          })
+        }
+      }
+
       return user
     } catch (err) {
       handlePrismaConflict(err)

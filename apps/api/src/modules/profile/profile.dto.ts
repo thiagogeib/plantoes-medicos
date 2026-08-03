@@ -26,6 +26,7 @@ export const updateOwnProfessionalProfileSchema = z.object({
   councilState: z.string().length(2, "Estado do conselho deve ter 2 letras").optional(),
   city: z.string().min(1).optional(),
   state: z.string().length(2, "Estado deve ter 2 letras").optional(),
+  zipCode: z.string().regex(/^\d{8}$/, "CEP deve ter 8 dígitos").optional(),
   specialtyIds: z.array(z.string()).min(1, "Selecione ao menos uma especialidade").optional(),
 })
 

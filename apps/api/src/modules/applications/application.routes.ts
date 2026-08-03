@@ -34,3 +34,10 @@ applicationRouter.patch(
   authorize("PROFESSIONAL"),
   ApplicationController.withdraw
 )
+
+applicationRouter.post(
+  "/:id/confirm",
+  authenticate,
+  authorize("PROFESSIONAL"),
+  ApplicationController.confirm
+)

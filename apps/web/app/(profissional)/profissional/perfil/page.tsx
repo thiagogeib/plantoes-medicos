@@ -38,6 +38,7 @@ const schema = z.object({
   councilState: z.string().length(2, 'UF: 2 letras'),
   city: z.string().optional(),
   state: z.string().max(2, 'UF: 2 letras').optional(),
+  zipCode: z.string().regex(/^\d{8}$/, 'CEP: 8 dígitos sem traço').optional().or(z.literal('')),
   specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
 })
 type FormValues = z.infer<typeof schema>
@@ -49,7 +50,7 @@ interface MeResponse {
       professionalProfile: {
         name: string; cpf: string; phone: string
         councilType: 'CRM' | 'COREN'; councilNumber: string; councilState: string
-        city?: string; state?: string
+        city?: string; state?: string; zipCode?: string
         specialties: { specialty: { id: string; name: string } }[]
       } | null
     }
@@ -75,7 +76,7 @@ export default function PerfilProfissionalPage() {
           email: user.email,
           name: p.name, cpf: p.cpf, phone: p.phone,
           councilType: p.councilType, councilNumber: p.councilNumber, councilState: p.councilState,
-          city: p.city ?? '', state: p.state ?? '',
+          city: p.city ?? '', state: p.state ?? '', zipCode: p.zipCode ?? '',
           specialtyIds: p.specialties.map((s) => s.specialty.id),
         })
       })
@@ -85,7 +86,10 @@ export default function PerfilProfissionalPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await apiClient.patch('/professionals/me', values)
+      await apiClient.patch('/professionals/me', {
+        ...values,
+        zipCode: values.zipCode ? values.zipCode : undefined,
+      })
       toast.success('Perfil atualizado com sucesso')
     } catch (err) {
       toast.error((err as ApiError)?.error?.message ?? 'Erro ao atualizar perfil')
@@ -151,6 +155,12 @@ export default function PerfilProfissionalPage() {
                   <FormField control={form.control} name="state" render={({ field }) => (
                     <FormItem><FormLabel>UF da cidade</FormLabel>
                       <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="zipCode" render={({ field }) => (
+                    <FormItem><FormLabel>CEP (opcional)</FormLabel>
+                      <FormControl><Input maxLength={8} placeholder="Só números" {...field} /></FormControl>
+                      <p className="text-xs text-slate-500">Usado para mostrar plantões próximos de você.</p>
+                      <FormMessage /></FormItem>
                   )} />
                 </div>
 

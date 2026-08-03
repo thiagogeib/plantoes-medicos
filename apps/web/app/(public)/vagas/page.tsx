@@ -53,6 +53,7 @@ export default function VagasPublicPage() {
   const [city, setCity] = useState('')
   const [turno, setTurno] = useState<Turno | ''>('')
   const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
+  const [requiredCouncilType, setRequiredCouncilType] = useState<'CRM' | 'COREN' | ''>('')
 
   useEffect(() => {
     apiClient
@@ -69,6 +70,7 @@ export default function VagasPublicPage() {
       if (city) params.set('city', city)
       if (turno) params.set('turno', turno)
       if (compensationType) params.set('compensationType', compensationType)
+      if (requiredCouncilType) params.set('requiredCouncilType', requiredCouncilType)
       const res = await apiClient.get<ApiListResponse<Shift>>(
         `/public/shifts?${params.toString()}`
       )
@@ -79,7 +81,7 @@ export default function VagasPublicPage() {
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, city, turno, compensationType, page])
+  }, [specialtyId, city, turno, compensationType, requiredCouncilType, page])
 
   useEffect(() => { void load() }, [load])
 
@@ -133,6 +135,23 @@ export default function VagasPublicPage() {
                 {specialties.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 min-w-40">
+            <label className="text-xs text-slate-500 mb-1 block">Perfil</label>
+            <Select
+              value={requiredCouncilType}
+              onValueChange={(v) => { setRequiredCouncilType(v === '__all__' ? '' : (v as 'CRM' | 'COREN')); setPage(1) }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Médico ou enfermeiro" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Médico ou enfermeiro</SelectItem>
+                <SelectItem value="CRM">Médico (CRM)</SelectItem>
+                <SelectItem value="COREN">Enfermeiro (COREN)</SelectItem>
               </SelectContent>
             </Select>
           </div>

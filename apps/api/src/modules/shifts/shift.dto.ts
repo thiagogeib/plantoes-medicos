@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { ShiftStatus, CompensationType } from "@prisma/client"
+import { ShiftStatus, CompensationType, CouncilType } from "@prisma/client"
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -8,6 +8,11 @@ export const createShiftSchema = z
     title: z.string().min(3, "Título deve ter no mínimo 3 caracteres"),
     description: z.string().min(10, "Descrição deve ter no mínimo 10 caracteres"),
     specialtyId: z.string().cuid("specialtyId inválido"),
+    requiredCouncilType: z
+      .nativeEnum(CouncilType, {
+        errorMap: () => ({ message: "Perfil exigido deve ser CRM (médico) ou COREN (enfermeiro)" }),
+      })
+      .default(CouncilType.CRM),
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD")
@@ -33,6 +38,7 @@ export const updateShiftSchema = z.object({
   title: z.string().min(3).optional(),
   description: z.string().min(10).optional(),
   specialtyId: z.string().cuid().optional(),
+  requiredCouncilType: z.nativeEnum(CouncilType).optional(),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -60,7 +66,9 @@ export const shiftFiltersSchema = z.object({
   dateTo: z.string().optional(),
   status: z.nativeEnum(ShiftStatus).optional(),
   compensationType: z.nativeEnum(CompensationType).optional(),
+  requiredCouncilType: z.nativeEnum(CouncilType).optional(),
   turno: z.enum(["MANHA", "TARDE", "NOITE"]).optional(),
+  raioKm: z.coerce.number().positive().max(1000).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })

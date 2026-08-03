@@ -43,7 +43,8 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
-import { UserPlus, FileWarning } from 'lucide-react'
+import { UserPlus, FileWarning, Download } from 'lucide-react'
+import { BulkUploadDialog } from '@/components/shared/bulk/BulkUploadDialog'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type {
@@ -444,6 +445,14 @@ export default function EquipePage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [absences, setAbsences] = useState<Absence[]>([])
 
+  async function handleExportHours() {
+    try {
+      await apiClient.downloadFile('/bulk/staff-hours', 'horas-da-equipe.csv')
+    } catch {
+      toast.error('Erro ao exportar horas da equipe')
+    }
+  }
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -499,9 +508,23 @@ export default function EquipePage() {
             Profissionais vinculados ao seu quadro — habilitados para trocas de plantão e solicitações de folga.
           </p>
         </div>
-        <Button onClick={() => setInviteOpen(true)} className="shrink-0">
-          <UserPlus className="mr-2 h-4 w-4" /> Convidar profissional
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" onClick={handleExportHours}>
+            <Download className="mr-2 h-4 w-4" /> Exportar horas (CSV)
+          </Button>
+          <BulkUploadDialog
+            triggerLabel="Importar horas (CSV)"
+            title="Atualizar horas da equipe em massa"
+            description="Envie um CSV com CPF, banco de horas e folgas disponíveis para atualizar vários profissionais de uma vez."
+            templatePath="/bulk/staff-hours"
+            templateFilename="horas-da-equipe.csv"
+            uploadPath="/bulk/staff-hours"
+            onSuccess={() => void load()}
+          />
+          <Button onClick={() => setInviteOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" /> Convidar profissional
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

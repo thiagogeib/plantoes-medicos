@@ -16,6 +16,8 @@ import { absenceRouter } from "./modules/absences/absence.routes"
 import { scheduleStatusRouter } from "./modules/schedule-status/schedule-status.routes"
 import { hospitalProfileRouter, professionalProfileRouter } from "./modules/profile/profile.routes"
 import { notificationRouter } from "./modules/notifications/notification.routes"
+import { webhookRouter } from "./modules/webhooks/webhook.routes"
+import { bulkRouter } from "./modules/bulk/bulk.routes"
 import { errorHandler } from "./shared/errors/errorHandler"
 import { healthHandler } from "./health"
 
@@ -58,6 +60,8 @@ app.use("/api/v1/leave-requests", leaveRequestRouter)
 app.use("/api/v1/absences", absenceRouter)
 app.use("/api/v1/schedule-status", scheduleStatusRouter)
 app.use("/api/v1/notifications", notificationRouter)
+app.use("/api/v1/webhooks", webhookRouter)
+app.use("/api/v1/bulk", bulkRouter)
 
 app.use(errorHandler)
 

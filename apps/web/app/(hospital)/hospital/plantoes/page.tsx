@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BulkUploadDialog } from '@/components/shared/bulk/BulkUploadDialog'
 import type { ShiftStatus, Shift, ApiError } from '@plantoes-medicos/types'
 
 const STATUS_OPTIONS: { value: ShiftStatus | ''; label: string }[] = [
@@ -74,10 +75,21 @@ export default function HospitalPlantoesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Plantões</h1>
           <p className="text-slate-500 text-sm mt-0.5">Gerencie os plantões do seu hospital</p>
         </div>
-        <Button onClick={() => router.push('/hospital/plantoes/novo')}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Novo plantão
-        </Button>
+        <div className="flex gap-2">
+          <BulkUploadDialog
+            triggerLabel="Upload em massa"
+            title="Publicar plantões em massa"
+            description="Envie um arquivo CSV com vários plantões de uma vez. Baixe o modelo, preencha e envie."
+            templatePath="/bulk/shifts/template"
+            templateFilename="modelo-plantoes.csv"
+            uploadPath="/bulk/shifts"
+            onSuccess={() => reload()}
+          />
+          <Button onClick={() => router.push('/hospital/plantoes/novo')}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Novo plantão
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

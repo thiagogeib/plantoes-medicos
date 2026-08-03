@@ -42,6 +42,9 @@ const schema = z.object({
   title: z.string().min(3, 'Título obrigatório'),
   description: z.string().min(10, 'Descrição muito curta'),
   specialtyId: z.string().min(1, 'Especialidade obrigatória'),
+  requiredCouncilType: z.enum(['CRM', 'COREN'], {
+    errorMap: () => ({ message: 'Selecione o perfil exigido' }),
+  }),
   date: z.string().min(1, 'Data obrigatória'),
   startTime: z.string().min(1, 'Horário de início obrigatório'),
   endTime: z.string().min(1, 'Horário de término obrigatório'),
@@ -72,6 +75,7 @@ export default function EditarPlantaoPage() {
       title: '',
       description: '',
       specialtyId: '',
+      requiredCouncilType: 'CRM',
       date: '',
       startTime: '',
       endTime: '',
@@ -99,6 +103,7 @@ export default function EditarPlantaoPage() {
           title: shift.title,
           description: shift.description,
           specialtyId: shift.specialtyId,
+          requiredCouncilType: shift.requiredCouncilType,
           date: shift.date.slice(0, 10),
           startTime: shift.startTime,
           endTime: shift.endTime,
@@ -224,6 +229,28 @@ export default function EditarPlantaoPage() {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="requiredCouncilType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Perfil exigido</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="CRM">Médico (CRM)</SelectItem>
+                        <SelectItem value="COREN">Enfermeiro (COREN)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

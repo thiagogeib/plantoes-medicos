@@ -12,6 +12,8 @@ interface CandidaturaCardProps {
   variant: 'hospital' | 'profissional'
   onAccept?: (id: string) => void
   onReject?: (id: string) => void
+  onConfirm?: (id: string) => void
+  confirmLoading?: boolean
 }
 
 const applicationStatusConfig: Record<
@@ -19,7 +21,8 @@ const applicationStatusConfig: Record<
   { label: string; variant: 'warning' | 'success' | 'destructive' | 'secondary' }
 > = {
   PENDING: { label: 'Pendente', variant: 'warning' },
-  ACCEPTED: { label: 'Aceito', variant: 'success' },
+  PENDING_CONFIRMATION: { label: 'Aprovado — aguardando confirmação', variant: 'warning' },
+  ACCEPTED: { label: 'Confirmado', variant: 'success' },
   REJECTED: { label: 'Recusado', variant: 'destructive' },
   WITHDRAWN: { label: 'Retirado', variant: 'secondary' },
 }
@@ -29,6 +32,8 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
   variant,
   onAccept,
   onReject,
+  onConfirm,
+  confirmLoading,
 }) => {
   const statusConfig = applicationStatusConfig[application.status]
 
@@ -71,15 +76,16 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
             <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
           </div>
 
-          {application.status === 'PENDING' && (onAccept || onReject) && (
+          {(application.status === 'PENDING' || application.status === 'PENDING_CONFIRMATION') &&
+            (onAccept || onReject) && (
             <div className="flex gap-2 mt-4">
-              {onAccept && (
+              {onAccept && application.status === 'PENDING' && (
                 <Button
                   size="sm"
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600"
                   onClick={() => onAccept(application.id)}
                 >
-                  Aceitar
+                  Aprovar
                 </Button>
               )}
               {onReject && (
@@ -118,6 +124,12 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
           </p>
         )}
 
+        {application.status === 'PENDING_CONFIRMATION' && (
+          <p className="text-sm text-slate-600 mb-2">
+            O hospital aprovou sua candidatura. Confirme e pague a taxa de confirmação para garantir a vaga.
+          </p>
+        )}
+
         {shift && (
           <div className="space-y-1.5 text-sm text-slate-500">
             {shift.hospital && (
@@ -138,6 +150,19 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
                 <span>{shift.location}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {application.status === 'PENDING_CONFIRMATION' && onConfirm && (
+          <div className="mt-4">
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => onConfirm(application.id)}
+              disabled={confirmLoading}
+            >
+              {confirmLoading ? 'Processando...' : 'Confirmar e pagar taxa'}
+            </Button>
           </div>
         )}
       </CardContent>

@@ -58,7 +58,11 @@ export default function PlantaoDetailPage() {
   async function handleStatus(applicationId: string, status: 'ACCEPTED' | 'REJECTED') {
     try {
       await apiClient.patch(`/applications/${applicationId}/status`, { status })
-      toast.success(status === 'ACCEPTED' ? 'Candidato aceito' : 'Candidato recusado')
+      toast.success(
+        status === 'ACCEPTED'
+          ? 'Candidato aprovado! A vaga será preenchida quando ele confirmar e pagar a taxa.'
+          : 'Candidato recusado'
+      )
       if (status === 'ACCEPTED') {
         const [shiftRes, appsRes] = await Promise.all([
           apiClient.get<ApiResponse<Shift>>(`/shifts/${id}`),
@@ -66,9 +70,6 @@ export default function PlantaoDetailPage() {
         ])
         setShift(shiftRes.data)
         setApplications(appsRes.data)
-        if (appsRes.data.some((a) => a.status === 'REJECTED' && a.id !== applicationId)) {
-          toast.info('Os demais candidatos pendentes foram recusados automaticamente')
-        }
       } else {
         setApplications((prev) =>
           prev.map((a) => (a.id === applicationId ? { ...a, status } : a))

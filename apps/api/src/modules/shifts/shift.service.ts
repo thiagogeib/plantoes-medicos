@@ -4,6 +4,7 @@ import { NotFoundError, ForbiddenError, ConflictError, AppError } from "../../sh
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import type { CreateShiftInput, UpdateShiftInput, ShiftFilters } from "./shift.dto"
 import { notifyProfessionalsAboutNewShift } from "../../shared/services/shift-notification.service"
+import { haversineKm } from "../../shared/helpers/geo"
 
 const TURNO_RANGES: Record<string, { gte: string; lt: string }> = {
   MANHA: { gte: "00:00", lt: "12:00" },
@@ -17,18 +18,33 @@ export class ShiftService {
     requestingUserId?: string,
     role?: string
   ) {
-    const { specialtyId, city, state, dateFrom, dateTo, status, compensationType, turno, page, limit } = filters
+    const {
+      specialtyId,
+      city,
+      state,
+      dateFrom,
+      dateTo,
+      status,
+      compensationType,
+      requiredCouncilType,
+      turno,
+      raioKm,
+      page,
+      limit,
+    } = filters
     const { skip, take } = paginate(page, limit)
 
     const where: Record<string, unknown> = {}
+    let professional: { id: string; councilType: string; latitude: number | null; longitude: number | null } | null =
+      null
 
     if (role === "PROFESSIONAL") {
       where.status = status ?? ShiftStatus.OPEN
 
-      const professional = requestingUserId
+      professional = requestingUserId
         ? await prisma.professionalProfile.findUnique({
             where: { userId: requestingUserId },
-            select: { id: true },
+            select: { id: true, councilType: true, latitude: true, longitude: true },
           })
         : null
 
@@ -40,12 +56,16 @@ export class ShiftService {
         : []
 
       where.hospitalId = { in: staffLinks.map((s) => s.hospitalId) }
+
+      // um profissional só pode ver plantões compatíveis com o próprio conselho (CRM/COREN)
+      if (professional) where.requiredCouncilType = professional.councilType
     } else if (status) {
       where.status = status
     }
 
     if (specialtyId) where.specialtyId = specialtyId
     if (compensationType) where.compensationType = compensationType
+    if (requiredCouncilType) where.requiredCouncilType = requiredCouncilType
     if (turno) where.startTime = TURNO_RANGES[turno]
 
     if (city || state) {
@@ -66,23 +86,59 @@ export class ShiftService {
       where.date = { gte: today }
     }
 
+    const includeClause = {
+      specialty: true,
+      hospital: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          state: true,
+          latitude: true,
+          longitude: true,
+        },
+      },
+    }
+
+    // filtro por raio em km exige calcular distância na aplicação (sem PostGIS),
+    // então busca um lote maior, filtra/ordena por distância e pagina em memória
+    if (raioKm && professional?.latitude != null && professional?.longitude != null) {
+      const candidates = await prisma.shift.findMany({
+        where,
+        orderBy: { date: "asc" },
+        include: includeClause,
+        take: 500,
+      })
+
+      const withDistance = candidates
+        .filter((s) => s.hospital.latitude != null && s.hospital.longitude != null)
+        .map((s) => ({
+          shift: s,
+          distanceKm: haversineKm(
+            professional!.latitude!,
+            professional!.longitude!,
+            s.hospital.latitude!,
+            s.hospital.longitude!
+          ),
+        }))
+        .filter((s) => s.distanceKm <= raioKm)
+        .sort((a, b) => a.distanceKm - b.distanceKm)
+
+      const total = withDistance.length
+      const page_data = withDistance
+        .slice(skip, skip + take)
+        .map((s) => ({ ...s.shift, distanceKm: Math.round(s.distanceKm * 10) / 10 }))
+
+      return { data: page_data, pagination: paginationMeta(total, page, limit) }
+    }
+
     const [data, total] = await Promise.all([
       prisma.shift.findMany({
         where,
         skip,
         take,
         orderBy: { date: "asc" },
-        include: {
-          specialty: true,
-          hospital: {
-            select: {
-              id: true,
-              name: true,
-              city: true,
-              state: true,
-            },
-          },
-        },
+        include: includeClause,
       }),
       prisma.shift.count({ where }),
     ])
@@ -104,6 +160,7 @@ export class ShiftService {
       data: {
         hospitalId,
         specialtyId: input.specialtyId,
+        requiredCouncilType: input.requiredCouncilType,
         title: input.title,
         description: input.description,
         date: new Date(input.date),
@@ -175,6 +232,7 @@ export class ShiftService {
     if (input.title !== undefined) updateData.title = input.title
     if (input.description !== undefined) updateData.description = input.description
     if (input.specialtyId !== undefined) updateData.specialtyId = input.specialtyId
+    if (input.requiredCouncilType !== undefined) updateData.requiredCouncilType = input.requiredCouncilType
     if (input.date !== undefined) updateData.date = new Date(input.date)
     if (input.startTime !== undefined) updateData.startTime = input.startTime
     if (input.endTime !== undefined) updateData.endTime = input.endTime
