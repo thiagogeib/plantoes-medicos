@@ -5,6 +5,7 @@ import { Calendar, MapPin, Building2, UserCircle, BookOpen } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { Application, ApplicationStatus } from '@plantoes-medicos/types'
 
 interface CandidaturaCardProps {
@@ -14,6 +15,9 @@ interface CandidaturaCardProps {
   onReject?: (id: string) => void
   onConfirm?: (id: string) => void
   confirmLoading?: boolean
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
 }
 
 const applicationStatusConfig: Record<
@@ -34,17 +38,27 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
   onReject,
   onConfirm,
   confirmLoading,
+  selectable,
+  selected,
+  onToggleSelect,
 }) => {
   const statusConfig = applicationStatusConfig[application.status]
 
   if (variant === 'hospital') {
     const professional = application.professional
     return (
-      <Card>
+      <Card className={selected ? 'ring-2 ring-primary' : undefined}>
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
+                {selectable && application.status === 'PENDING' && (
+                  <Checkbox
+                    checked={!!selected}
+                    onCheckedChange={onToggleSelect}
+                    aria-label="Selecionar candidato"
+                  />
+                )}
                 <UserCircle className="h-5 w-5 text-slate-400 shrink-0" />
                 <span className="font-semibold text-slate-900 truncate">
                   {professional?.name ?? 'Profissional'}

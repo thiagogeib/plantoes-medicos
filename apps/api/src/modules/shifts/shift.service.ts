@@ -13,6 +13,11 @@ const TURNO_RANGES: Record<string, { gte: string; lt: string }> = {
   NOITE: { gte: "18:00", lt: "24:00" },
 }
 
+function matchesDiaSemana(date: Date, diaSemana?: number): boolean {
+  if (diaSemana === undefined) return true
+  return date.getUTCDay() === diaSemana
+}
+
 export class ShiftService {
   static async listShifts(
     filters: ShiftFilters,
@@ -30,6 +35,7 @@ export class ShiftService {
       requiredCouncilType,
       turno,
       raioKm,
+      diaSemana,
       page,
       limit,
     } = filters
@@ -101,9 +107,10 @@ export class ShiftService {
       },
     }
 
-    // filtro por raio em km exige calcular distância na aplicação (sem PostGIS),
-    // então busca um lote maior, filtra/ordena por distância e pagina em memória
-    if (raioKm && professional?.latitude != null && professional?.longitude != null) {
+    // filtro por raio em km e/ou dia da semana exige calcular na aplicação (sem PostGIS
+    // e sem EXTRACT(DOW) via Prisma), então busca um lote maior e filtra/pagina em memória
+    const useRadius = !!raioKm && professional?.latitude != null && professional?.longitude != null
+    if (useRadius || diaSemana !== undefined) {
       const candidates = await prisma.shift.findMany({
         where,
         orderBy: { date: "asc" },
@@ -111,24 +118,27 @@ export class ShiftService {
         take: 500,
       })
 
-      const withDistance = candidates
-        .filter((s) => s.hospital.latitude != null && s.hospital.longitude != null)
+      let withDistance = candidates
+        .filter((s) => matchesDiaSemana(s.date, diaSemana))
         .map((s) => ({
           shift: s,
-          distanceKm: haversineKm(
-            professional!.latitude!,
-            professional!.longitude!,
-            s.hospital.latitude!,
-            s.hospital.longitude!
-          ),
+          distanceKm: useRadius
+            ? s.hospital.latitude != null && s.hospital.longitude != null
+              ? haversineKm(professional!.latitude!, professional!.longitude!, s.hospital.latitude, s.hospital.longitude)
+              : null
+            : null,
         }))
-        .filter((s) => s.distanceKm <= raioKm)
-        .sort((a, b) => a.distanceKm - b.distanceKm)
+
+      if (useRadius) {
+        withDistance = withDistance
+          .filter((s) => s.distanceKm != null && s.distanceKm <= raioKm)
+          .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0))
+      }
 
       const total = withDistance.length
       const page_data = withDistance
         .slice(skip, skip + take)
-        .map((s) => ({ ...s.shift, distanceKm: Math.round(s.distanceKm * 10) / 10 }))
+        .map((s) => (s.distanceKm != null ? { ...s.shift, distanceKm: Math.round(s.distanceKm * 10) / 10 } : s.shift))
 
       return { data: page_data, pagination: paginationMeta(total, page, limit) }
     }
@@ -324,11 +334,42 @@ export class ShiftService {
   }
 
   static async listHospitalShifts(hospitalId: string, filters: ShiftFilters) {
-    const { status, page, limit } = filters
+    const { status, specialtyId, compensationType, dateFrom, dateTo, diaSemana, hasCandidates, page, limit } =
+      filters
     const { skip, take } = paginate(page, limit)
 
     const where: Record<string, unknown> = { hospitalId }
     if (status) where.status = status
+    if (specialtyId) where.specialtyId = specialtyId
+    if (compensationType) where.compensationType = compensationType
+    if (dateFrom || dateTo) {
+      where.date = {
+        ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+        ...(dateTo ? { lte: new Date(dateTo) } : {}),
+      }
+    }
+    if (hasCandidates !== undefined) {
+      const openApplication = { status: { in: ["PENDING", "PENDING_CONFIRMATION"] } }
+      where.applications = hasCandidates === "true" ? { some: openApplication } : { none: openApplication }
+    }
+
+    const includeClause = {
+      specialty: true,
+      _count: { select: { applications: true } },
+    }
+
+    if (diaSemana !== undefined) {
+      const candidates = await prisma.shift.findMany({
+        where,
+        orderBy: { date: "desc" },
+        include: includeClause,
+        take: 500,
+      })
+      const filtered = candidates.filter((s) => matchesDiaSemana(s.date, diaSemana))
+      const total = filtered.length
+      const data = filtered.slice(skip, skip + take)
+      return { data, pagination: paginationMeta(total, page, limit) }
+    }
 
     const [data, total] = await Promise.all([
       prisma.shift.findMany({
@@ -336,10 +377,7 @@ export class ShiftService {
         skip,
         take,
         orderBy: { date: "desc" },
-        include: {
-          specialty: true,
-          _count: { select: { applications: true } },
-        },
+        include: includeClause,
       }),
       prisma.shift.count({ where }),
     ])

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { useHospitalShifts } from '@/hooks/use-hospital-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { apiClient } from '@/lib/api-client'
 import {
   Select,
@@ -25,7 +26,8 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BulkUploadDialog } from '@/components/shared/bulk/BulkUploadDialog'
-import type { ShiftStatus, Shift, ApiError } from '@plantoes-medicos/types'
+import { compensationLabels } from '@/lib/compensation'
+import type { ShiftStatus, Shift, ApiError, Specialty, ApiListResponse, CompensationType } from '@plantoes-medicos/types'
 
 const STATUS_OPTIONS: { value: ShiftStatus | ''; label: string }[] = [
   { value: '', label: 'Todos os status' },
@@ -35,13 +37,33 @@ const STATUS_OPTIONS: { value: ShiftStatus | ''; label: string }[] = [
   { value: 'CANCELLED', label: 'Cancelado' },
 ]
 
+const diaSemanaLabel = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
+
 export default function HospitalPlantoesPage() {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<ShiftStatus | ''>('')
+  const [specialtyId, setSpecialtyId] = useState('')
+  const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
+  const [date, setDate] = useState('')
+  const [diaSemana, setDiaSemana] = useState<number | ''>('')
+  const [hasCandidates, setHasCandidates] = useState<'true' | 'false' | ''>('')
   const [page, setPage] = useState(1)
+  const [specialties, setSpecialties] = useState<Specialty[]>([])
+
+  useEffect(() => {
+    apiClient
+      .get<ApiListResponse<Specialty>>('/specialties')
+      .then((res) => setSpecialties(res.data))
+      .catch(() => {})
+  }, [])
 
   const { shifts, totalPages, loading, reload } = useHospitalShifts({
     status: statusFilter,
+    specialtyId: specialtyId || undefined,
+    compensationType: compensationType || undefined,
+    date: date || undefined,
+    diaSemana: diaSemana === '' ? undefined : diaSemana,
+    hasCandidates: hasCandidates === '' ? undefined : hasCandidates === 'true',
     page,
   })
 
@@ -92,7 +114,7 @@ export default function HospitalPlantoesPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Select
           value={statusFilter}
           onValueChange={(val) => {
@@ -109,6 +131,87 @@ export default function HospitalPlantoesPage() {
                 {opt.label}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={specialtyId}
+          onValueChange={(val) => {
+            setSpecialtyId(val === '__all__' ? '' : val)
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Especialidade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas as especialidades</SelectItem>
+            {specialties.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={compensationType}
+          onValueChange={(val) => {
+            setCompensationType(val === '__all__' ? '' : (val as CompensationType))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Compensação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Qualquer compensação</SelectItem>
+            {(Object.keys(compensationLabels) as CompensationType[]).map((c) => (
+              <SelectItem key={c} value={c}>{compensationLabels[c]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={diaSemana === '' ? '' : String(diaSemana)}
+          onValueChange={(val) => {
+            setDiaSemana(val === '__all__' ? '' : Number(val))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Dia da semana" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Qualquer dia</SelectItem>
+            {diaSemanaLabel.map((label, i) => (
+              <SelectItem key={i} value={String(i)}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Input
+          type="date"
+          className="w-40"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value)
+            setPage(1)
+          }}
+        />
+
+        <Select
+          value={hasCandidates}
+          onValueChange={(val) => {
+            setHasCandidates(val === '__all__' ? '' : (val as 'true' | 'false'))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Candidatos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Com ou sem candidatos</SelectItem>
+            <SelectItem value="true">Com candidatos</SelectItem>
+            <SelectItem value="false">Sem candidatos</SelectItem>
           </SelectContent>
         </Select>
       </div>

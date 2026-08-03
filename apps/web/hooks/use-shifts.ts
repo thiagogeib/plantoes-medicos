@@ -11,6 +11,8 @@ interface UseShiftsOptions {
   compensationType?: CompensationType
   turno?: Turno
   raioKm?: number
+  date?: string
+  diaSemana?: number
   page?: number
   limit?: number
 }
@@ -21,6 +23,8 @@ export function useShifts({
   compensationType,
   turno,
   raioKm,
+  date,
+  diaSemana,
   page = 1,
   limit = 12,
 }: UseShiftsOptions = {}) {
@@ -41,6 +45,11 @@ export function useShifts({
       if (compensationType) params.set('compensationType', compensationType)
       if (turno) params.set('turno', turno)
       if (raioKm) params.set('raioKm', String(raioKm))
+      if (date) {
+        params.set('dateFrom', date)
+        params.set('dateTo', date)
+      }
+      if (diaSemana !== undefined) params.set('diaSemana', String(diaSemana))
 
       const res = await apiClient.get<ApiListResponse<Shift>>(`/shifts?${params.toString()}`)
       setShifts(res.data)
@@ -50,7 +59,7 @@ export function useShifts({
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, city, compensationType, turno, raioKm, page, limit])
+  }, [specialtyId, city, compensationType, turno, raioKm, date, diaSemana, page, limit])
 
   useEffect(() => {
     void load()

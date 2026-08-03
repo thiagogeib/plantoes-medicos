@@ -69,6 +69,8 @@ export const shiftFiltersSchema = z.object({
   requiredCouncilType: z.nativeEnum(CouncilType).optional(),
   turno: z.enum(["MANHA", "TARDE", "NOITE"]).optional(),
   raioKm: z.coerce.number().positive().max(1000).optional(),
+  diaSemana: z.coerce.number().int().min(0).max(6).optional(),
+  hasCandidates: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })

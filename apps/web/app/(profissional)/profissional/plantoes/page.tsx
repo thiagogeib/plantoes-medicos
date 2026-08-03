@@ -30,6 +30,7 @@ import { compensationLabels } from '@/lib/compensation'
 import type { Specialty, ApiListResponse, CompensationType, Turno, ShiftSwapRequest } from '@plantoes-medicos/types'
 
 const turnoLabel: Record<Turno, string> = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }
+const diaSemanaLabel = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 
 function turnoOf(startTime: string): Turno {
   if (startTime < '12:00') return 'MANHA'
@@ -45,6 +46,8 @@ export default function ProfissionalPlantoesPage() {
   const [turno, setTurno] = useState<Turno | ''>('')
   const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
   const [raioKm, setRaioKm] = useState('')
+  const [date, setDate] = useState('')
+  const [diaSemana, setDiaSemana] = useState<number | ''>('')
   const [page, setPage] = useState(1)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
   const [swaps, setSwaps] = useState<ShiftSwapRequest[]>([])
@@ -59,6 +62,8 @@ export default function ProfissionalPlantoesPage() {
     turno: turno || undefined,
     compensationType: compensationType || undefined,
     raioKm: raioKm ? Number(raioKm) : undefined,
+    date: date || undefined,
+    diaSemana: diaSemana === '' ? undefined : diaSemana,
     page,
   })
 
@@ -142,7 +147,7 @@ export default function ProfissionalPlantoesPage() {
 
   const showSwaps = page === 1 && filteredSwaps.length > 0
   const noResults = !loading && shifts.length === 0 && !showSwaps
-  const hasActiveFilters = !!(specialtyId || turno || compensationType || city || raioKm)
+  const hasActiveFilters = !!(specialtyId || turno || compensationType || city || raioKm || date || diaSemana !== '')
 
   return (
     <div className="space-y-6">
@@ -233,6 +238,34 @@ export default function ProfissionalPlantoesPage() {
             ))}
           </SelectContent>
         </Select>
+
+        <Select
+          value={diaSemana === '' ? '' : String(diaSemana)}
+          onValueChange={(val) => {
+            setDiaSemana(val === '__all__' ? '' : Number(val))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Dia da semana" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Qualquer dia</SelectItem>
+            {diaSemanaLabel.map((label, i) => (
+              <SelectItem key={i} value={String(i)}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Input
+          type="date"
+          className="w-full sm:w-40"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value)
+            setPage(1)
+          }}
+        />
 
         <Input
           type="number"

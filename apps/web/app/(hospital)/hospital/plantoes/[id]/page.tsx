@@ -36,6 +36,8 @@ export default function PlantaoDetailPage() {
   const [cancelling, setCancelling] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [acceptingBulk, setAcceptingBulk] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -79,6 +81,35 @@ export default function PlantaoDetailPage() {
       const error = err as ApiError
       toast.error(error?.error?.message ?? 'Erro ao atualizar candidatura')
     }
+  }
+
+  function toggleSelect(applicationId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(applicationId)) next.delete(applicationId)
+      else next.add(applicationId)
+      return next
+    })
+  }
+
+  async function handleBulkAccept() {
+    setAcceptingBulk(true)
+    const ids = Array.from(selected)
+    const results = await Promise.allSettled(
+      ids.map((appId) => apiClient.patch(`/applications/${appId}/status`, { status: 'ACCEPTED' }))
+    )
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const fail = results.length - ok
+    if (ok > 0) toast.success(`${ok} candidato(s) aprovado(s)`)
+    if (fail > 0) toast.error(`${fail} não puderam ser aprovados (provavelmente sem vagas suficientes)`)
+    setSelected(new Set())
+    setAcceptingBulk(false)
+    const [shiftRes, appsRes] = await Promise.all([
+      apiClient.get<ApiResponse<Shift>>(`/shifts/${id}`),
+      apiClient.get<ApiListResponse<Application>>(`/shifts/${id}/applications`),
+    ])
+    setShift(shiftRes.data)
+    setApplications(appsRes.data)
   }
 
   async function handleCancel() {
@@ -228,9 +259,20 @@ export default function PlantaoDetailPage() {
       </Card>
 
       <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">
-          Candidatos ({applications.length})
-        </h2>
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Candidatos ({applications.length})
+          </h2>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-md px-3 py-1.5">
+              <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Limpar</Button>
+              <Button size="sm" onClick={handleBulkAccept} disabled={acceptingBulk}>
+                {acceptingBulk ? 'Aprovando...' : `Aprovar selecionados (${selected.size})`}
+              </Button>
+            </div>
+          )}
+        </div>
         {applications.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-slate-500">
@@ -246,6 +288,9 @@ export default function PlantaoDetailPage() {
                 variant="hospital"
                 onAccept={() => handleStatus(app.id, 'ACCEPTED')}
                 onReject={() => handleStatus(app.id, 'REJECTED')}
+                selectable={shift.slots - shift.filledSlots > 1}
+                selected={selected.has(app.id)}
+                onToggleSelect={() => toggleSelect(app.id)}
               />
             ))}
           </div>

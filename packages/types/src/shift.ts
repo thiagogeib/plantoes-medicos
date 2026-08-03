@@ -31,6 +31,7 @@ export interface Shift {
     professional: { id: string; name: string }
   }
   distanceKm?: number
+  _count?: { applications: number }
   createdAt: string
   updatedAt: string
 }
@@ -75,6 +76,8 @@ export interface ShiftFilters {
   status?: ShiftStatus
   requiredCouncilType?: CouncilType
   raioKm?: number
+  diaSemana?: number
+  hasCandidates?: boolean
   page?: number
   limit?: number
 }

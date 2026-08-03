@@ -3,15 +3,29 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
-import type { Shift, ShiftStatus, ApiListResponse } from '@plantoes-medicos/types'
+import type { Shift, ShiftStatus, ApiListResponse, CompensationType } from '@plantoes-medicos/types'
 
 interface UseHospitalShiftsOptions {
   status?: ShiftStatus | ''
+  specialtyId?: string
+  compensationType?: CompensationType | ''
+  date?: string
+  diaSemana?: number
+  hasCandidates?: boolean
   page?: number
   limit?: number
 }
 
-export function useHospitalShifts({ status, page = 1, limit = 10 }: UseHospitalShiftsOptions = {}) {
+export function useHospitalShifts({
+  status,
+  specialtyId,
+  compensationType,
+  date,
+  diaSemana,
+  hasCandidates,
+  page = 1,
+  limit = 10,
+}: UseHospitalShiftsOptions = {}) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -24,6 +38,14 @@ export function useHospitalShifts({ status, page = 1, limit = 10 }: UseHospitalS
         limit: String(limit),
       })
       if (status) params.set('status', status)
+      if (specialtyId) params.set('specialtyId', specialtyId)
+      if (compensationType) params.set('compensationType', compensationType)
+      if (date) {
+        params.set('dateFrom', date)
+        params.set('dateTo', date)
+      }
+      if (diaSemana !== undefined) params.set('diaSemana', String(diaSemana))
+      if (hasCandidates !== undefined) params.set('hasCandidates', String(hasCandidates))
 
       const res = await apiClient.get<ApiListResponse<Shift>>(
         `/hospitals/me/shifts?${params.toString()}`
@@ -35,7 +57,7 @@ export function useHospitalShifts({ status, page = 1, limit = 10 }: UseHospitalS
     } finally {
       setLoading(false)
     }
-  }, [status, page, limit])
+  }, [status, specialtyId, compensationType, date, diaSemana, hasCandidates, page, limit])
 
   useEffect(() => {
     void load()

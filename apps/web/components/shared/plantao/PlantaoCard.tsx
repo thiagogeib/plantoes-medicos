@@ -160,8 +160,13 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
           <Badge variant="outline">{compensationLabels[shift.compensationType]}</Badge>
+          {onViewCandidates && shift._count && (
+            <Badge variant={shift._count.applications > 0 ? 'default' : 'secondary'}>
+              {shift._count.applications} candidato(s)
+            </Badge>
+          )}
         </div>
 
         {isSwapOffer ? (
