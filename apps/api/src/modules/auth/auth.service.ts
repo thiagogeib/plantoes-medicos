@@ -234,6 +234,8 @@ export class AuthService {
             latitude: true,
             longitude: true,
             defaultRejectionMessage: true,
+            leaveCoverageDeadlineDays: true,
+            longLeaveThresholdMinutes: true,
           },
         },
         professionalProfile: {

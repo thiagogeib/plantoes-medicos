@@ -1,5 +1,6 @@
 import type { Shift } from './shift'
 import type { ProfessionalProfile } from './user'
+import type { Application } from './application'
 
 export type LeaveRequestStatus =
   | 'PENDING'
@@ -9,42 +10,33 @@ export type LeaveRequestStatus =
   | 'REJECTED'
   | 'CANCELLED'
 
-export type LeaveCoverInterestStatus = 'PENDING' | 'SELECTED' | 'REJECTED'
-
-type ProfessionalSummary = Pick<ProfessionalProfile, 'id' | 'name' | 'councilType' | 'councilNumber'> & {
-  phone?: string
-}
-
-export interface LeaveCoverInterest {
-  id: string
-  leaveRequestId: string
-  professionalId: string
-  professional?: ProfessionalSummary
-  status: LeaveCoverInterestStatus
-  createdAt: string
-  updatedAt: string
-}
-
 export interface LeaveRequest {
   id: string
   shiftId: string
-  shift?: Pick<Shift, 'id' | 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'specialty' | 'hospital'>
+  shift?: Pick<Shift, 'id' | 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'specialty' | 'hospital'> & {
+    applications?: (Pick<Application, 'id' | 'status'> & {
+      professional?: Pick<ProfessionalProfile, 'id' | 'name' | 'councilType' | 'councilNumber'>
+    })[]
+    hospital?: Shift['hospital'] & {
+      leaveCoverageDeadlineDays?: number
+      longLeaveThresholdMinutes?: number
+    }
+  }
   professionalId: string
   professional?: Pick<ProfessionalProfile, 'id' | 'name' | 'councilType' | 'councilNumber'>
   date: string
+  durationMinutes: number
   reason?: string
   status: LeaveRequestStatus
-  selectedCoverInterestId?: string
-  coverInterests: LeaveCoverInterest[]
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateLeaveRequestPayload {
-  shiftId: string
+  hospitalId?: string
+  specialtyId: string
+  date: string
+  startTime: string
+  endTime: string
   reason?: string
-}
-
-export interface SelectCoverPayload {
-  interestId: string
 }

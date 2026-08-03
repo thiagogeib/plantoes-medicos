@@ -1,10 +1,11 @@
-import { ShiftStatus, SwapRequestStatus, LeaveRequestStatus } from "@prisma/client"
+import { ShiftStatus, SwapRequestStatus } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError, AppError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import type { CreateShiftInput, UpdateShiftInput, ShiftFilters } from "./shift.dto"
 import { notifyProfessionalsAboutNewShift } from "../../shared/services/shift-notification.service"
 import { haversineKm } from "../../shared/helpers/geo"
+import { refundLeaveRequestForShift } from "../leave-requests/leave-request-expiration.service"
 
 const TURNO_RANGES: Record<string, { gte: string; lt: string }> = {
   MANHA: { gte: "00:00", lt: "12:00" },
@@ -265,13 +266,7 @@ export class ShiftService {
           where: { shiftId: id, status: SwapRequestStatus.OPEN },
           data: { status: SwapRequestStatus.CANCELLED },
         })
-        await tx.leaveRequest.updateMany({
-          where: {
-            shiftId: id,
-            status: { in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED_PENDING_COVERAGE] },
-          },
-          data: { status: LeaveRequestStatus.CANCELLED },
-        })
+        await refundLeaveRequestForShift(tx, id, hospitalId)
       }
 
       return updatedShift
@@ -296,13 +291,7 @@ export class ShiftService {
         data: { status: SwapRequestStatus.CANCELLED },
       })
 
-      await tx.leaveRequest.updateMany({
-        where: {
-          shiftId: id,
-          status: { in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED_PENDING_COVERAGE] },
-        },
-        data: { status: LeaveRequestStatus.CANCELLED },
-      })
+      await refundLeaveRequestForShift(tx, id, hospitalId)
 
       return updatedShift
     })
@@ -326,6 +315,7 @@ export class ShiftService {
     await prisma.$transaction(async (tx) => {
       await tx.shiftSwapInterest.deleteMany({ where: { swapRequest: { shiftId: id } } })
       await tx.shiftSwapRequest.deleteMany({ where: { shiftId: id } })
+      await refundLeaveRequestForShift(tx, id, hospitalId)
       await tx.leaveCoverInterest.deleteMany({ where: { leaveRequest: { shiftId: id } } })
       await tx.leaveRequest.deleteMany({ where: { shiftId: id } })
       await tx.application.deleteMany({ where: { shiftId: id } })

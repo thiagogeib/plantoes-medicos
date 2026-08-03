@@ -37,6 +37,8 @@ export interface HospitalProfile {
   latitude?: number | null
   longitude?: number | null
   defaultRejectionMessage?: string
+  leaveCoverageDeadlineDays: number
+  longLeaveThresholdMinutes: number
   createdAt: string
   updatedAt: string
 }

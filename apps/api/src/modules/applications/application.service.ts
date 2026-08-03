@@ -1,4 +1,4 @@
-import { ApplicationStatus, ShiftStatus, ChargeStatus } from "@prisma/client"
+import { ApplicationStatus, ShiftStatus, ChargeStatus, LeaveRequestStatus } from "@prisma/client"
 
 const DEFAULT_REJECTION_MESSAGE =
   "Agradecemos seu interesse, mas o plantão foi preenchido por outro profissional."
@@ -12,6 +12,8 @@ import {
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import { notify } from "../../shared/services/notification.service"
 import { getPlatformFeeCents, createPaymentPreference } from "../../shared/services/payment.service"
+import { computeShiftDurationMinutes } from "../../shared/helpers/duration"
+import { expireOverdueLeaveRequests } from "../leave-requests/leave-request-expiration.service"
 import type { CreateApplicationInput, UpdateStatusInput, ApplicationFilters } from "./application.dto"
 
 export class ApplicationService {
@@ -53,6 +55,8 @@ export class ApplicationService {
     professionalId: string,
     input: CreateApplicationInput
   ) {
+    await expireOverdueLeaveRequests({ shiftId })
+
     const shift = await prisma.shift.findUnique({
       where: { id: shiftId },
       include: { hospital: { select: { userId: true } } },
@@ -420,7 +424,23 @@ export class ApplicationService {
         }
       }
 
-      return { updatedApplication, autoRejected: rejected, hospitalUserId: application.shift.hospital.userId }
+      const coveredLeave = await tx.leaveRequest.findFirst({
+        where: { shiftId: application.shiftId, status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE },
+        include: { professional: { select: { userId: true } } },
+      })
+      if (coveredLeave) {
+        await tx.leaveRequest.update({
+          where: { id: coveredLeave.id },
+          data: { status: LeaveRequestStatus.COVERED },
+        })
+      }
+
+      return {
+        updatedApplication,
+        autoRejected: rejected,
+        hospitalUserId: application.shift.hospital.userId,
+        coveredLeave,
+      }
     })
 
     await notify({
@@ -430,6 +450,16 @@ export class ApplicationService {
       message: `O profissional confirmou e pagou a taxa para "${application.shift.title}"`,
       link: `/hospital/plantoes/${application.shiftId}`,
     })
+
+    if (result.coveredLeave) {
+      await notify({
+        userId: result.coveredLeave.professional.userId,
+        type: "LEAVE_COVERED",
+        title: "Folga coberta",
+        message: `Sua folga em "${application.shift.title}" foi coberta — um substituto confirmou e pagou a taxa`,
+        link: "/profissional/folgas",
+      })
+    }
 
     for (const rejectedApp of result.autoRejected) {
       await notify({
@@ -464,11 +494,7 @@ export class ApplicationService {
     const byCompensation = { MONEY: 0, HOUR_BANK: 0, OTHER: 0 }
 
     for (const app of applications) {
-      const [sh, sm] = app.shift.startTime.split(":").map(Number)
-      const [eh, em] = app.shift.endTime.split(":").map(Number)
-      let minutes = eh * 60 + em - (sh * 60 + sm)
-      if (minutes <= 0) minutes += 24 * 60
-      totalMinutes += minutes
+      totalMinutes += computeShiftDurationMinutes(app.shift.startTime, app.shift.endTime)
       byCompensation[app.shift.compensationType] += 1
     }
 

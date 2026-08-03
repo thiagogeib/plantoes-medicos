@@ -14,6 +14,8 @@ export const updateOwnHospitalProfileSchema = z.object({
   state: z.string().length(2, "Estado deve ter 2 letras").optional(),
   zipCode: z.string().regex(/^\d{8}$/, "CEP deve ter 8 dígitos").optional(),
   defaultRejectionMessage: z.string().max(500, "Máximo 500 caracteres").optional(),
+  leaveCoverageDeadlineDays: z.coerce.number().int().min(1, "Mínimo 1 dia").max(30, "Máximo 30 dias").optional(),
+  longLeaveThresholdMinutes: z.coerce.number().int().min(60, "Mínimo 1 hora").max(2400, "Máximo 40 horas").optional(),
 })
 
 export const updateOwnProfessionalProfileSchema = z.object({

@@ -140,6 +140,8 @@ enum NotificationType {
   LEAVE_COVERED
   LEAVE_CANCELLATION_REQUESTED
   LEAVE_CANCELLATION_DECIDED
+  LEAVE_REQUEST_OPENED
+  LEAVE_REQUEST_EXPIRED
 }
 
 model Notification {
@@ -183,6 +185,8 @@ model HospitalProfile {
   state                   String
   zipCode                 String
   defaultRejectionMessage String?
+  leaveCoverageDeadlineDays Int    @default(3)
+  longLeaveThresholdMinutes Int    @default(720)
   latitude                Float?
   longitude               Float?
   createdAt               DateTime @default(now())
@@ -377,11 +381,12 @@ model ShiftSwapInterest {
 
 model LeaveRequest {
   id                      String              @id @default(cuid())
-  shiftId                 String
+  shiftId                 String              @unique
   shift                   Shift               @relation(fields: [shiftId], references: [id])
   professionalId          String
   professional            ProfessionalProfile @relation(fields: [professionalId], references: [id])
   date                    DateTime            @db.Date
+  durationMinutes         Int                 @default(0)
   reason                  String?
   status                  LeaveRequestStatus  @default(PENDING)
   selectedCoverInterestId String?
@@ -390,7 +395,6 @@ model LeaveRequest {
 
   coverInterests LeaveCoverInterest[]
 
-  @@index([shiftId])
   @@index([professionalId])
   @@index([status])
 }

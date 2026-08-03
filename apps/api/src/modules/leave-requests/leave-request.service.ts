@@ -1,77 +1,148 @@
 import {
-  ApplicationStatus,
   StaffStatus,
   StaffType,
   LeaveRequestStatus,
-  SwapInterestStatus,
+  ShiftStatus,
+  CompensationType,
+  ApplicationStatus,
 } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError } from "../../shared/errors/AppError"
 import { notify } from "../../shared/services/notification.service"
+import { computeShiftDurationMinutes } from "../../shared/helpers/duration"
+import { notifyProfessionalsAboutNewShift } from "../../shared/services/shift-notification.service"
+import { refundLeaveRequestForShift, expireOverdueLeaveRequests } from "./leave-request-expiration.service"
 import type { CreateLeaveRequestInput } from "./leave-request.dto"
 
 const leaveInclude = {
   shift: {
     include: {
       specialty: true,
-      hospital: { select: { id: true, name: true, city: true, state: true } },
+      hospital: {
+        select: { id: true, name: true, city: true, state: true, leaveCoverageDeadlineDays: true, longLeaveThresholdMinutes: true },
+      },
+      applications: {
+        where: {
+          status: {
+            in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION, ApplicationStatus.ACCEPTED],
+          },
+        },
+        include: {
+          professional: { select: { id: true, name: true, councilType: true, councilNumber: true } },
+        },
+      },
     },
   },
   professional: {
     select: { id: true, name: true, councilType: true, councilNumber: true },
   },
-  coverInterests: {
-    include: {
-      professional: {
-        select: { id: true, name: true, councilType: true, councilNumber: true, phone: true },
-      },
-    },
-  },
-} as const
+}
 
 export class LeaveRequestService {
   static async create(professionalId: string, input: CreateLeaveRequestInput) {
-    const application = await prisma.application.findUnique({
-      where: { shiftId_professionalId: { shiftId: input.shiftId, professionalId } },
-      include: { shift: true },
+    const professional = await prisma.professionalProfile.findUnique({
+      where: { id: professionalId },
+      select: {
+        id: true,
+        name: true,
+        councilType: true,
+        specialties: { select: { specialtyId: true } },
+      },
     })
-    if (!application || application.status !== ApplicationStatus.ACCEPTED) {
-      throw new ConflictError("Você só pode solicitar folga de um plantão que já foi aceito")
-    }
+    if (!professional) throw new NotFoundError("Perfil profissional não encontrado")
 
-    const staffLink = await prisma.hospitalStaff.findUnique({
-      where: { hospitalId_professionalId: { hospitalId: application.shift.hospitalId, professionalId } },
+    const hasSpecialty = professional.specialties.some((s) => s.specialtyId === input.specialtyId)
+    if (!hasSpecialty) throw new ForbiddenError("Selecione uma área de atuação do seu próprio perfil")
+
+    const specialty = await prisma.specialty.findUnique({ where: { id: input.specialtyId } })
+    if (!specialty) throw new NotFoundError("Especialidade não encontrada")
+
+    const staffLinks = await prisma.hospitalStaff.findMany({
+      where: { professionalId, status: StaffStatus.ACTIVE, type: StaffType.FIXO },
+      include: {
+        hospital: {
+          select: { id: true, name: true, street: true, number: true, city: true, state: true, userId: true },
+        },
+      },
     })
-    if (!staffLink || staffLink.status !== StaffStatus.ACTIVE) {
-      throw new ForbiddenError("Você não faz parte do quadro deste hospital")
-    }
-    if (staffLink.type !== StaffType.FIXO) {
+    if (staffLinks.length === 0) {
       throw new ForbiddenError(
-        "Solicitação de folga é exclusiva para profissionais fixos do quadro. Como plantonista avulso, você pode oferecer este plantão para troca."
+        "Solicitação de folga é exclusiva para profissionais fixos ativos do quadro de algum hospital"
       )
     }
 
-    const existing = await prisma.leaveRequest.findFirst({
-      where: {
-        shiftId: input.shiftId,
-        professionalId,
-        status: { in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED_PENDING_COVERAGE] },
-      },
-    })
-    if (existing) throw new ConflictError("Já existe uma solicitação de folga em aberto para este plantão")
+    let staffLink = staffLinks[0]
+    if (staffLinks.length > 1) {
+      if (!input.hospitalId) {
+        throw new ConflictError("Você é fixo em mais de um hospital — informe hospitalId")
+      }
+      const match = staffLinks.find((s) => s.hospitalId === input.hospitalId)
+      if (!match) throw new ForbiddenError("Você não é fixo ativo neste hospital")
+      staffLink = match
+    } else if (input.hospitalId && input.hospitalId !== staffLink.hospitalId) {
+      throw new ForbiddenError("Você não é fixo ativo neste hospital")
+    }
 
-    return prisma.leaveRequest.create({
-      data: {
-        shiftId: input.shiftId,
-        professionalId,
-        date: application.shift.date,
-        reason: input.reason,
-      },
-      include: leaveInclude,
+    const durationMinutes = computeShiftDurationMinutes(input.startTime, input.endTime)
+    if (staffLink.hourBankMinutes < durationMinutes) {
+      throw new ConflictError("Saldo de banco de horas insuficiente para a duração solicitada")
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.hospitalStaff.update({
+        where: { id: staffLink.id },
+        data: { hourBankMinutes: { decrement: durationMinutes } },
+      })
+
+      const shift = await tx.shift.create({
+        data: {
+          hospitalId: staffLink.hospitalId,
+          specialtyId: input.specialtyId,
+          requiredCouncilType: professional.councilType,
+          title: `Cobertura de folga — ${professional.name}`,
+          description: input.reason
+            ? `Cobertura de folga solicitada por ${professional.name}. Motivo: ${input.reason}`
+            : `Cobertura de folga solicitada por ${professional.name}.`,
+          date: new Date(input.date),
+          startTime: input.startTime,
+          endTime: input.endTime,
+          location: `${staffLink.hospital.street}, ${staffLink.hospital.number} - ${staffLink.hospital.city}/${staffLink.hospital.state}`,
+          slots: 1,
+          status: ShiftStatus.OPEN,
+          compensationType: CompensationType.MONEY,
+        },
+        include: { specialty: true, hospital: { select: { name: true, city: true, state: true } } },
+      })
+
+      const leave = await tx.leaveRequest.create({
+        data: {
+          shiftId: shift.id,
+          professionalId,
+          date: new Date(input.date),
+          durationMinutes,
+          reason: input.reason,
+          status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE,
+        },
+        include: leaveInclude,
+      })
+
+      return { leave, shift, hospitalUserId: staffLink.hospital.userId }
     })
+
+    void notifyProfessionalsAboutNewShift(result.shift)
+    await notify({
+      userId: result.hospitalUserId,
+      type: "LEAVE_REQUEST_OPENED",
+      title: "Vaga de cobertura de folga aberta",
+      message: `Uma vaga de cobertura foi aberta automaticamente para a folga de ${professional.name}`,
+      link: `/hospital/folgas`,
+    })
+
+    return result.leave
   }
 
   static async listMine(professionalId: string) {
+    await expireOverdueLeaveRequests({ professionalId })
     return prisma.leaveRequest.findMany({
       where: { professionalId },
       orderBy: { createdAt: "desc" },
@@ -102,7 +173,7 @@ export class LeaveRequestService {
     if (leave.professionalId !== professionalId) throw new ForbiddenError("Sem permissão para esta solicitação")
     if (leave.status !== LeaveRequestStatus.APPROVED_PENDING_COVERAGE) {
       throw new ConflictError(
-        "Só é possível pedir cancelamento de uma folga já aprovada e ainda sem cobertura confirmada"
+        "Só é possível pedir cancelamento de uma folga já aberta e ainda sem cobertura confirmada"
       )
     }
 
@@ -115,7 +186,7 @@ export class LeaveRequestService {
       userId: leave.shift.hospital.userId,
       type: "LEAVE_CANCELLATION_REQUESTED",
       title: "Cancelamento de folga solicitado",
-      message: `Um profissional pediu para cancelar a folga aprovada em "${leave.shift.title}"`,
+      message: `Um profissional pediu para cancelar a folga aberta em "${leave.shift.title}"`,
       link: `/hospital/folgas`,
     })
 
@@ -149,25 +220,13 @@ export class LeaveRequestService {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      await tx.leaveCoverInterest.updateMany({
-        where: { leaveRequestId: id, status: SwapInterestStatus.PENDING },
-        data: { status: SwapInterestStatus.REJECTED },
+      await tx.application.updateMany({
+        where: { shiftId: leave.shiftId, status: "PENDING" },
+        data: { status: "REJECTED", rejectionReason: "Folga cancelada pelo profissional" },
       })
-
-      const staffLink = await tx.hospitalStaff.findUnique({
-        where: { hospitalId_professionalId: { hospitalId, professionalId: leave.professionalId } },
-      })
-      if (staffLink) {
-        await tx.hospitalStaff.update({
-          where: { id: staffLink.id },
-          data: { availableDaysOff: staffLink.availableDaysOff + 1 },
-        })
-      }
-
-      return tx.leaveRequest.update({
-        where: { id },
-        data: { status: LeaveRequestStatus.CANCELLED },
-      })
+      await tx.shift.update({ where: { id: leave.shiftId }, data: { status: ShiftStatus.CANCELLED } })
+      await refundLeaveRequestForShift(tx, leave.shiftId, hospitalId)
+      return tx.leaveRequest.findUnique({ where: { id } })
     })
 
     await notify({
@@ -182,222 +241,11 @@ export class LeaveRequestService {
   }
 
   static async listForHospital(hospitalId: string) {
+    await expireOverdueLeaveRequests({ hospitalId })
     return prisma.leaveRequest.findMany({
       where: { shift: { hospitalId } },
       orderBy: { createdAt: "desc" },
       include: leaveInclude,
     })
-  }
-
-  static async approve(id: string, hospitalId: string) {
-    const leave = await prisma.leaveRequest.findUnique({
-      where: { id },
-      include: { shift: true, professional: { select: { userId: true } } },
-    })
-    if (!leave) throw new NotFoundError("Solicitação de folga não encontrada")
-    if (leave.shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão sobre esta solicitação")
-    if (leave.status !== LeaveRequestStatus.PENDING) throw new ConflictError("Esta solicitação já foi respondida")
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const staffLink = await tx.hospitalStaff.findUnique({
-        where: { hospitalId_professionalId: { hospitalId, professionalId: leave.professionalId } },
-      })
-      if (staffLink) {
-        await tx.hospitalStaff.update({
-          where: { id: staffLink.id },
-          data: { availableDaysOff: Math.max(0, staffLink.availableDaysOff - 1) },
-        })
-      }
-
-      return tx.leaveRequest.update({
-        where: { id },
-        data: { status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE },
-      })
-    })
-
-    await notify({
-      userId: leave.professional.userId,
-      type: "LEAVE_APPROVED",
-      title: "Folga aprovada",
-      message: `Sua folga em "${leave.shift.title}" foi aprovada e está aberta para cobertura`,
-      link: `/profissional/folgas`,
-    })
-
-    return updated
-  }
-
-  static async reject(id: string, hospitalId: string) {
-    const leave = await prisma.leaveRequest.findUnique({
-      where: { id },
-      include: { shift: true, professional: { select: { userId: true } } },
-    })
-    if (!leave) throw new NotFoundError("Solicitação de folga não encontrada")
-    if (leave.shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão sobre esta solicitação")
-    if (leave.status !== LeaveRequestStatus.PENDING) throw new ConflictError("Esta solicitação já foi respondida")
-
-    const updated = await prisma.leaveRequest.update({
-      where: { id },
-      data: { status: LeaveRequestStatus.REJECTED },
-    })
-
-    await notify({
-      userId: leave.professional.userId,
-      type: "LEAVE_REJECTED",
-      title: "Folga recusada",
-      message: `Sua solicitação de folga em "${leave.shift.title}" foi recusada`,
-      link: `/profissional/folgas`,
-    })
-
-    return updated
-  }
-
-  static async listAvailableForProfessional(professionalId: string) {
-    const staffLinks = await prisma.hospitalStaff.findMany({
-      where: { professionalId, status: StaffStatus.ACTIVE },
-      select: { hospitalId: true },
-    })
-    const hospitalIds = staffLinks.map((s) => s.hospitalId)
-    if (hospitalIds.length === 0) return []
-
-    const specialties = await prisma.professionalSpecialty.findMany({
-      where: { professionalId },
-      select: { specialtyId: true },
-    })
-    const specialtyIds = specialties.map((s) => s.specialtyId)
-
-    return prisma.leaveRequest.findMany({
-      where: {
-        status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE,
-        professionalId: { not: professionalId },
-        shift: {
-          hospitalId: { in: hospitalIds },
-          specialtyId: { in: specialtyIds },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      include: leaveInclude,
-    })
-  }
-
-  static async expressInterest(leaveRequestId: string, professionalId: string) {
-    const leave = await prisma.leaveRequest.findUnique({
-      where: { id: leaveRequestId },
-      include: { shift: true, professional: { select: { userId: true } } },
-    })
-    if (!leave) throw new NotFoundError("Solicitação de folga não encontrada")
-    if (leave.status !== LeaveRequestStatus.APPROVED_PENDING_COVERAGE) {
-      throw new ConflictError("Esta folga não está disponível para cobertura")
-    }
-    if (leave.professionalId === professionalId) {
-      throw new ConflictError("Você não pode cobrir sua própria folga")
-    }
-
-    const staffLink = await prisma.hospitalStaff.findUnique({
-      where: { hospitalId_professionalId: { hospitalId: leave.shift.hospitalId, professionalId } },
-    })
-    if (!staffLink || staffLink.status !== StaffStatus.ACTIVE) {
-      throw new ForbiddenError("Você não faz parte do quadro deste hospital")
-    }
-
-    const existing = await prisma.leaveCoverInterest.findUnique({
-      where: { leaveRequestId_professionalId: { leaveRequestId, professionalId } },
-    })
-    if (existing) throw new ConflictError("Você já manifestou interesse nesta cobertura")
-
-    const created = await prisma.leaveCoverInterest.create({
-      data: { leaveRequestId, professionalId },
-    })
-
-    await notify({
-      userId: leave.professional.userId,
-      type: "LEAVE_COVER_INTEREST",
-      title: "Novo interesse em cobrir sua folga",
-      message: `Um profissional manifestou interesse em cobrir sua folga em "${leave.shift.title}"`,
-      link: `/profissional/folgas`,
-    })
-
-    return created
-  }
-
-  static async selectCover(leaveRequestId: string, hospitalId: string, interestId: string) {
-    const leave = await prisma.leaveRequest.findUnique({
-      where: { id: leaveRequestId },
-      include: { shift: true, professional: { select: { userId: true } } },
-    })
-    if (!leave) throw new NotFoundError("Solicitação de folga não encontrada")
-    if (leave.shift.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão sobre esta solicitação")
-    if (leave.status !== LeaveRequestStatus.APPROVED_PENDING_COVERAGE) {
-      throw new ConflictError("Esta folga não está aguardando cobertura")
-    }
-
-    const interest = await prisma.leaveCoverInterest.findUnique({
-      where: { id: interestId },
-      include: { professional: { select: { userId: true } } },
-    })
-    if (!interest || interest.leaveRequestId !== leaveRequestId) {
-      throw new NotFoundError("Manifestação de interesse não encontrada")
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.leaveCoverInterest.updateMany({
-        where: { leaveRequestId, id: { not: interestId } },
-        data: { status: SwapInterestStatus.REJECTED },
-      })
-      await tx.leaveCoverInterest.update({
-        where: { id: interestId },
-        data: { status: SwapInterestStatus.SELECTED },
-      })
-      const updatedLeave = await tx.leaveRequest.update({
-        where: { id: leaveRequestId },
-        data: { status: LeaveRequestStatus.COVERED, selectedCoverInterestId: interestId },
-      })
-
-      const originalApplication = await tx.application.findUnique({
-        where: { shiftId_professionalId: { shiftId: leave.shiftId, professionalId: leave.professionalId } },
-      })
-      if (originalApplication) {
-        await tx.application.update({
-          where: { id: originalApplication.id },
-          data: { status: ApplicationStatus.WITHDRAWN },
-        })
-      }
-
-      const coverApplication = await tx.application.findUnique({
-        where: { shiftId_professionalId: { shiftId: leave.shiftId, professionalId: interest.professionalId } },
-      })
-      if (coverApplication) {
-        await tx.application.update({
-          where: { id: coverApplication.id },
-          data: { status: ApplicationStatus.ACCEPTED },
-        })
-      } else {
-        await tx.application.create({
-          data: {
-            shiftId: leave.shiftId,
-            professionalId: interest.professionalId,
-            status: ApplicationStatus.ACCEPTED,
-          },
-        })
-      }
-
-      return updatedLeave
-    })
-
-    await notify({
-      userId: interest.professional.userId,
-      type: "LEAVE_COVERED",
-      title: "Cobertura confirmada",
-      message: `Você foi confirmado para cobrir o plantão "${leave.shift.title}"`,
-      link: `/profissional/candidaturas`,
-    })
-    await notify({
-      userId: leave.professional.userId,
-      type: "LEAVE_COVERED",
-      title: "Folga efetivada",
-      message: `Sua folga em "${leave.shift.title}" foi efetivada — substituto confirmado`,
-      link: `/profissional/folgas`,
-    })
-
-    return result
   }
 }
