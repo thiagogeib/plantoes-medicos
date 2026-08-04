@@ -11,6 +11,7 @@ import {
   MousePointer,
   Repeat,
 } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { NotebookMockup, PhoneMockup } from '@/components/shared/marketing/DeviceMockups'
 import type { PublicStats, ApiResponse } from '@plantoes-medicos/types'
@@ -74,30 +75,43 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      <section className="bg-indigo-600 text-white">
-        <div className="max-w-5xl mx-auto px-4 py-16 sm:py-20 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-balance">
-            A escala do plantão não devia morar num grupo de WhatsApp
-          </h1>
-          <p className="text-indigo-100 text-base sm:text-lg max-w-2xl mx-auto mb-8 text-balance">
-            PlantoesMed é o lugar onde o hospital publica o plantão e o profissional se candidata,
-            direto — sem planilha, sem intermediário, sem vaga perdida por falta de aviso.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/vagas">
-              <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                <Search className="h-4 w-4 mr-2" /> Buscar plantões disponíveis
-              </Button>
-            </Link>
-            <Link href="/cadastro/hospital">
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto bg-transparent border-white text-white hover:bg-white/10 hover:text-white"
-              >
-                <Building2 className="h-4 w-4 mr-2" /> Sou hospital, quero publicar vagas
-              </Button>
-            </Link>
+      <section className="bg-indigo-600 text-white overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+          <div className="text-center lg:text-left">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-balance">
+              A escala do plantão não devia morar num grupo de WhatsApp
+            </h1>
+            <p className="text-indigo-100 text-base sm:text-lg max-w-2xl mx-auto lg:mx-0 mb-8 text-balance">
+              PlantoesMed é o lugar onde o hospital publica o plantão e o profissional se candidata,
+              direto — sem planilha, sem intermediário, sem vaga perdida por falta de aviso.
+            </p>
+            <div className="flex flex-col gap-3 items-center lg:items-start">
+              <Link href="/vagas" className="w-full sm:w-auto">
+                <Button size="lg" variant="secondary" className="w-full">
+                  <Search className="h-4 w-4 mr-2" /> Buscar plantões disponíveis
+                </Button>
+              </Link>
+              <Link href="/cadastro/hospital" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full bg-transparent border-white text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Building2 className="h-4 w-4 mr-2" /> Sou hospital, quero publicar vagas
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 hidden sm:block">
+            <Image
+              src="/marketing/hero-illustration.png"
+              alt="Ilustração de um médico e uma enfermeira revisando a escala de plantões"
+              width={1536}
+              height={1024}
+              priority
+              className="w-full h-auto"
+              sizes="(max-width: 1024px) 90vw, 560px"
+            />
           </div>
         </div>
       </section>

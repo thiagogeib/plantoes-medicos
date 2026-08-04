@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyStateIllustration } from '@/components/shared/ui/EmptyStateIllustration'
 import {
   Table,
   TableBody,
@@ -608,7 +609,7 @@ export default function EquipePage() {
         <div>
           <h2 className="text-lg font-semibold text-slate-900 mb-3">Afastamentos registrados</h2>
           {absences.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-slate-400">Nenhum afastamento registrado ainda.</CardContent></Card>
+            <Card><CardContent className="py-8 text-center text-slate-400 space-y-2"><EmptyStateIllustration size={72} /><p>Nenhum afastamento registrado ainda.</p></CardContent></Card>
           ) : (
             <div className="space-y-2">
               {absences.map((a) => (

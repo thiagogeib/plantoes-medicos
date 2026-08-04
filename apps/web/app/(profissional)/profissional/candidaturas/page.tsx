@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useMyApplications } from '@/hooks/use-my-applications'
 import { CandidaturaCard } from '@/components/shared/candidatura/CandidaturaCard'
+import { EmptyStateIllustration } from '@/components/shared/ui/EmptyStateIllustration'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/lib/api-client'
@@ -91,8 +92,9 @@ export default function CandidaturasPage() {
           ))}
         </div>
       ) : applications.length === 0 ? (
-        <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-xl">
-          Nenhuma candidatura encontrada.
+        <div className="text-center py-16 space-y-2 border border-dashed border-slate-200 rounded-xl">
+          <EmptyStateIllustration size={80} />
+          <p className="text-slate-400">Nenhuma candidatura encontrada.</p>
         </div>
       ) : (
         <div className="space-y-3">

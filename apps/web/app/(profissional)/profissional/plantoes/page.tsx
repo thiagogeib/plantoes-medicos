@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Search, Building2, LayoutGrid, List as ListIcon, MapPin, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Search, LayoutGrid, List as ListIcon, MapPin, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { EmptyStateIllustration } from '@/components/shared/ui/EmptyStateIllustration'
 import { toast } from 'sonner'
 import { useShifts } from '@/hooks/use-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
@@ -371,7 +372,7 @@ export default function ProfissionalPlantoesPage() {
             )}
           {noResults && !hasActiveFilters && (
             <div className="col-span-3 text-center py-16 space-y-3">
-              <Building2 className="h-10 w-10 mx-auto text-slate-300" />
+              <EmptyStateIllustration />
               <p className="text-slate-500">
                 Você ainda não faz parte do quadro de nenhum hospital.
               </p>
