@@ -27,6 +27,7 @@ export class ShiftService {
   ) {
     const {
       specialtyId,
+      hospitalId,
       city,
       state,
       dateFrom,
@@ -63,7 +64,9 @@ export class ShiftService {
           })
         : []
 
-      where.hospitalId = { in: staffLinks.map((s) => s.hospitalId) }
+      const allowedHospitalIds = staffLinks.map((s) => s.hospitalId)
+      where.hospitalId =
+        hospitalId && allowedHospitalIds.includes(hospitalId) ? hospitalId : { in: allowedHospitalIds }
 
       // um profissional só pode ver plantões compatíveis com o próprio conselho (CRM/COREN)
       if (professional) where.requiredCouncilType = professional.councilType
@@ -72,6 +75,7 @@ export class ShiftService {
     }
 
     if (specialtyId) where.specialtyId = specialtyId
+    if (role !== "PROFESSIONAL" && hospitalId) where.hospitalId = hospitalId
     if (compensationType) where.compensationType = compensationType
     if (requiredCouncilType) where.requiredCouncilType = requiredCouncilType
     if (turno) where.startTime = TURNO_RANGES[turno]

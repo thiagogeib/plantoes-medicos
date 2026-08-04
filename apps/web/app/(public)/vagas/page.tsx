@@ -128,7 +128,7 @@ export default function VagasPublicPage() {
               onValueChange={(v) => { setSpecialtyId(v === '__all__' ? '' : v); setPage(1) }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Todas as especialidades" />
+                <SelectValue placeholder="Todas" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todas as especialidades</SelectItem>
@@ -146,7 +146,7 @@ export default function VagasPublicPage() {
               onValueChange={(v) => { setRequiredCouncilType(v === '__all__' ? '' : (v as 'CRM' | 'COREN')); setPage(1) }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Médico ou enfermeiro" />
+                <SelectValue placeholder="Ambos" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Médico ou enfermeiro</SelectItem>
@@ -163,7 +163,7 @@ export default function VagasPublicPage() {
               onValueChange={(v) => { setTurno(v === '__all__' ? '' : (v as Turno)); setPage(1) }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Qualquer turno" />
+                <SelectValue placeholder="Qualquer" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Qualquer turno</SelectItem>
@@ -181,7 +181,7 @@ export default function VagasPublicPage() {
               onValueChange={(v) => { setCompensationType(v === '__all__' ? '' : (v as CompensationType)); setPage(1) }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Qualquer compensação" />
+                <SelectValue placeholder="Qualquer" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Qualquer compensação</SelectItem>
@@ -214,7 +214,7 @@ export default function VagasPublicPage() {
       {/* Grid */}
       <div className="max-w-5xl mx-auto px-4 pb-12">
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,320px))]">
             {Array.from({ length: 6 }).map((_, i) => <ShiftCardSkeleton key={i} />)}
           </div>
         ) : shifts.length === 0 ? (
@@ -224,7 +224,7 @@ export default function VagasPublicPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid gap-4 justify-center grid-cols-[repeat(auto-fit,minmax(260px,320px))]">
               {shifts.map((shift) => (
                 <Link key={shift.id} href={`/vagas/${shift.id}`}>
                   <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">

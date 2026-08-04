@@ -60,6 +60,7 @@ export const updateShiftSchema = z.object({
 
 export const shiftFiltersSchema = z.object({
   specialtyId: z.string().cuid().optional(),
+  hospitalId: z.string().cuid().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   dateFrom: z.string().optional(),

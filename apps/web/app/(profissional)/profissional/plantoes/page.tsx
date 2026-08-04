@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/select'
 import { apiClient } from '@/lib/api-client'
 import { compensationLabels } from '@/lib/compensation'
-import type { Specialty, ApiListResponse, CompensationType, Turno, ShiftSwapRequest } from '@plantoes-medicos/types'
+import type { Specialty, ApiListResponse, CompensationType, Turno, ShiftSwapRequest, HospitalStaff } from '@plantoes-medicos/types'
 
 const turnoLabel: Record<Turno, string> = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }
 const diaSemanaLabel = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
@@ -49,6 +49,7 @@ function turnoOf(startTime: string): Turno {
 export default function ProfissionalPlantoesPage() {
   const router = useRouter()
   const [specialtyId, setSpecialtyId] = useState('')
+  const [hospitalId, setHospitalId] = useState('')
   const [city, setCity] = useState('')
   const [cityInput, setCityInput] = useState('')
   const [turno, setTurno] = useState<Turno | ''>('')
@@ -58,6 +59,7 @@ export default function ProfissionalPlantoesPage() {
   const [diaSemana, setDiaSemana] = useState<number | ''>('')
   const [page, setPage] = useState(1)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
+  const [myHospitals, setMyHospitals] = useState<HospitalStaff[]>([])
   const [swaps, setSwaps] = useState<ShiftSwapRequest[]>([])
   const [busySwapId, setBusySwapId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'card' | 'list' | 'map'>('card')
@@ -67,6 +69,7 @@ export default function ProfissionalPlantoesPage() {
 
   const { shifts, totalPages, loading, reload } = useShifts({
     specialtyId,
+    hospitalId,
     city,
     turno: turno || undefined,
     compensationType: compensationType || undefined,
@@ -91,6 +94,12 @@ export default function ProfissionalPlantoesPage() {
       .get<ApiListResponse<Specialty>>('/specialties')
       .then((res) => setSpecialties(res.data))
       .catch(() => toast.error('Erro ao carregar especialidades'))
+    apiClient
+      .get<{ data: HospitalStaff[] }>('/staff/me')
+      .then((res) => setMyHospitals(res.data.filter((s) => s.status === 'ACTIVE')))
+      .catch(() => {
+        // silencioso — filtro por hospital só não aparece populado
+      })
     void loadSwaps()
   }, [loadSwaps])
 
@@ -102,12 +111,13 @@ export default function ProfissionalPlantoesPage() {
     return swaps.filter((swap) => {
       if (!swap.shift) return false
       if (specialtyId && swap.shift.specialtyId !== specialtyId) return false
+      if (hospitalId && swap.shift.hospitalId !== hospitalId) return false
       if (turno && turnoOf(swap.shift.startTime) !== turno) return false
       if (compensationType && swap.shift.compensationType !== compensationType) return false
       if (city && !swap.shift.hospital?.city?.toLowerCase().includes(city.toLowerCase())) return false
       return true
     })
-  }, [swaps, specialtyId, turno, compensationType, city])
+  }, [swaps, specialtyId, hospitalId, turno, compensationType, city])
 
   const handleSearch = () => {
     setCity(cityInput)
@@ -157,7 +167,7 @@ export default function ProfissionalPlantoesPage() {
 
   const showSwaps = page === 1 && filteredSwaps.length > 0
   const noResults = !loading && shifts.length === 0 && !showSwaps
-  const hasActiveFilters = !!(specialtyId || turno || compensationType || city || raioKm || date || diaSemana !== '')
+  const hasActiveFilters = !!(specialtyId || hospitalId || turno || compensationType || city || raioKm || date || diaSemana !== '')
 
   return (
     <div className="space-y-6">
@@ -230,6 +240,28 @@ export default function ProfissionalPlantoesPage() {
             ))}
           </SelectContent>
         </Select>
+
+        {myHospitals.length > 0 && (
+          <Select
+            value={hospitalId}
+            onValueChange={(val) => {
+              setHospitalId(val === '__all__' ? '' : val)
+              setPage(1)
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-52">
+              <SelectValue placeholder="Hospital" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os hospitais</SelectItem>
+              {myHospitals.map((link) => (
+                <SelectItem key={link.hospitalId} value={link.hospitalId}>
+                  {link.hospital?.name ?? 'Hospital'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Select
           value={turno}

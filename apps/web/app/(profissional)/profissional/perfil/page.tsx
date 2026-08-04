@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -42,6 +44,13 @@ const schema = z.object({
   specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
 })
 type FormValues = z.infer<typeof schema>
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
 
 interface MeResponse {
   data: {
@@ -96,12 +105,43 @@ export default function PerfilProfissionalPage() {
     }
   }
 
+  const name = form.watch('name')
+  const councilType = form.watch('councilType')
+  const councilNumber = form.watch('councilNumber')
+  const councilState = form.watch('councilState')
+  const specialtyCount = form.watch('specialtyIds')?.length ?? 0
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Meu Perfil</h1>
         <p className="text-slate-500 text-sm mt-0.5">Seus dados exibidos na plataforma</p>
       </div>
+
+      {!loading && (
+        <Card>
+          <CardContent className="p-5 flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="bg-indigo-100 text-indigo-700 text-lg font-semibold">
+                {getInitials(name || '?')}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-900 truncate">{name || 'Sem nome'}</p>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                {councilType && councilNumber && (
+                  <Badge variant="secondary" className="text-xs">
+                    {councilType} {councilNumber}{councilState ? `/${councilState}` : ''}
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-xs">
+                  {specialtyCount} especialidade{specialtyCount !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -44,7 +44,14 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
-import { UserPlus, FileWarning, Download } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { UserPlus, FileWarning, Download, MoreHorizontal, Wallet, Repeat, UserMinus } from 'lucide-react'
 import { BulkUploadDialog } from '@/components/shared/bulk/BulkUploadDialog'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -573,30 +580,41 @@ export default function EquipePage() {
                     {Math.round((s.hourBankMinutes / 60) * 100) / 100}h
                   </TableCell>
                   <TableCell className="text-slate-600 text-sm">{s.availableDaysOff}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => setBalanceTarget(s)}>
-                      Ajustar saldo
-                    </Button>
-                    {s.status !== 'INACTIVE' && (
-                      <Button size="sm" variant="outline" onClick={() => handleToggleType(s)}>
-                        Marcar como {s.type === 'FIXO' ? 'avulso' : 'fixo'}
-                      </Button>
-                    )}
-                    {s.status === 'ACTIVE' && (
-                      <Button size="sm" variant="outline" onClick={() => setAbsenceTarget(s)}>
-                        <FileWarning className="mr-1.5 h-3.5 w-3.5" /> Afastamento
-                      </Button>
-                    )}
-                    {s.status !== 'INACTIVE' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-500 border-red-200 hover:bg-red-50"
-                        onClick={() => setDeactivateTarget(s)}
-                      >
-                        Remover
-                      </Button>
-                    )}
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="Ações">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => setBalanceTarget(s)}>
+                          <Wallet className="mr-2 h-3.5 w-3.5" /> Ajustar saldo
+                        </DropdownMenuItem>
+                        {s.status !== 'INACTIVE' && (
+                          <DropdownMenuItem onSelect={() => handleToggleType(s)}>
+                            <Repeat className="mr-2 h-3.5 w-3.5" />
+                            Marcar como {s.type === 'FIXO' ? 'avulso' : 'fixo'}
+                          </DropdownMenuItem>
+                        )}
+                        {s.status === 'ACTIVE' && (
+                          <DropdownMenuItem onSelect={() => setAbsenceTarget(s)}>
+                            <FileWarning className="mr-2 h-3.5 w-3.5" /> Afastamento
+                          </DropdownMenuItem>
+                        )}
+                        {s.status !== 'INACTIVE' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() => setDeactivateTarget(s)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <UserMinus className="mr-2 h-3.5 w-3.5" /> Remover
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))

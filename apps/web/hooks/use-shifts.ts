@@ -7,6 +7,7 @@ import type { Shift, ApiListResponse, CompensationType, Turno } from '@plantoes-
 
 interface UseShiftsOptions {
   specialtyId?: string
+  hospitalId?: string
   city?: string
   compensationType?: CompensationType
   turno?: Turno
@@ -19,6 +20,7 @@ interface UseShiftsOptions {
 
 export function useShifts({
   specialtyId,
+  hospitalId,
   city,
   compensationType,
   turno,
@@ -41,6 +43,7 @@ export function useShifts({
         status: 'OPEN',
       })
       if (specialtyId) params.set('specialtyId', specialtyId)
+      if (hospitalId) params.set('hospitalId', hospitalId)
       if (city) params.set('city', city)
       if (compensationType) params.set('compensationType', compensationType)
       if (turno) params.set('turno', turno)
@@ -59,7 +62,7 @@ export function useShifts({
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, city, compensationType, turno, raioKm, date, diaSemana, page, limit])
+  }, [specialtyId, hospitalId, city, compensationType, turno, raioKm, date, diaSemana, page, limit])
 
   useEffect(() => {
     void load()
