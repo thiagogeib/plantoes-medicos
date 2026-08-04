@@ -4,6 +4,7 @@ import { prisma } from "../../prisma/client"
 import { NotFoundError, AppError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import { geocodeByZipCode } from "../../shared/services/geocoding.service"
+import { notify } from "../../shared/services/notification.service"
 import {
   AdminCreateHospitalInput,
   AdminCreateProfessionalInput,
@@ -204,7 +205,7 @@ export class AdminService {
       throw new AppError("Não é possível alterar o status de um administrador", 400, "BAD_REQUEST")
     }
 
-    return prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id },
       data: { status },
       select: {
@@ -215,6 +216,20 @@ export class AdminService {
         updatedAt: true,
       },
     })
+
+    if (status !== user.status && status !== UserStatus.PENDING_VERIFICATION) {
+      const isReactivation = status === UserStatus.ACTIVE
+      await notify({
+        userId: id,
+        type: "ACCOUNT_STATUS_CHANGED",
+        title: isReactivation ? "Sua conta foi reativada" : "Sua conta foi suspensa",
+        message: isReactivation
+          ? "Sua conta foi reativada e você já pode acessar a plataforma normalmente."
+          : "Sua conta foi suspensa pela administração. Entre em contato com o suporte para mais informações.",
+      })
+    }
+
+    return updated
   }
 
   static async deleteUser(id: string) {

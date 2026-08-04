@@ -223,14 +223,19 @@ export class LeaveRequestService {
       return reverted
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const { updatedLeave, rejectedApplicants } = await prisma.$transaction(async (tx) => {
+      const pendingApplications = await tx.application.findMany({
+        where: { shiftId: leave.shiftId, status: "PENDING" },
+        include: { professional: { select: { userId: true } } },
+      })
       await tx.application.updateMany({
         where: { shiftId: leave.shiftId, status: "PENDING" },
         data: { status: "REJECTED", rejectionReason: "Folga cancelada pelo profissional" },
       })
       await tx.shift.update({ where: { id: leave.shiftId }, data: { status: ShiftStatus.CANCELLED } })
       await refundLeaveRequestForShift(tx, leave.shiftId, hospitalId)
-      return tx.leaveRequest.findUnique({ where: { id } })
+      const updatedLeave = await tx.leaveRequest.findUnique({ where: { id } })
+      return { updatedLeave, rejectedApplicants: pendingApplications }
     })
 
     await notify({
@@ -241,7 +246,17 @@ export class LeaveRequestService {
       link: `/profissional/folgas`,
     })
 
-    return result
+    for (const application of rejectedApplicants) {
+      await notify({
+        userId: application.professional.userId,
+        type: "APPLICATION_REJECTED",
+        title: "Candidatura recusada",
+        message: `Sua candidatura para "${leave.shift.title}" foi recusada — a folga foi cancelada pelo profissional`,
+        link: "/profissional/candidaturas",
+      })
+    }
+
+    return updatedLeave
   }
 
   static async listForHospital(hospitalId: string) {

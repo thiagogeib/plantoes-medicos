@@ -88,13 +88,18 @@ export async function expireOverdueLeaveRequests(filter: ExpirationFilter): Prom
     })
     if (hasCommitted) continue
 
-    await prisma.$transaction(async (tx) => {
+    const rejectedApplicants = await prisma.$transaction(async (tx) => {
+      const pendingApplications = await tx.application.findMany({
+        where: { shiftId: leave.shiftId, status: ApplicationStatus.PENDING },
+        include: { professional: { select: { userId: true } } },
+      })
       await tx.application.updateMany({
         where: { shiftId: leave.shiftId, status: ApplicationStatus.PENDING },
         data: { status: ApplicationStatus.REJECTED, rejectionReason: "Prazo de cobertura da folga expirou" },
       })
       await tx.shift.update({ where: { id: leave.shiftId }, data: { status: ShiftStatus.CANCELLED } })
       await refundLeaveRequestForShift(tx, leave.shiftId, leave.shift.hospitalId)
+      return pendingApplications
     })
 
     await notify({
@@ -104,5 +109,15 @@ export async function expireOverdueLeaveRequests(filter: ExpirationFilter): Prom
       message: `Sua folga em "${leave.shift.title}" expirou sem candidato e foi cancelada. O banco de horas foi estornado.`,
       link: "/profissional/folgas",
     })
+
+    for (const application of rejectedApplicants) {
+      await notify({
+        userId: application.professional.userId,
+        type: "APPLICATION_REJECTED",
+        title: "Candidatura recusada",
+        message: `Sua candidatura para "${leave.shift.title}" foi recusada — o prazo de cobertura da folga expirou`,
+        link: "/profissional/candidaturas",
+      })
+    }
   }
 }

@@ -2,6 +2,7 @@ import { StaffStatus, StaffType } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
+import { notify } from "../../shared/services/notification.service"
 import type { AdjustBalanceInput, CandidateFilters, StaffFilters, UpdateStaffTypeInput } from "./hospital-staff.dto"
 
 const professionalSelect = {
@@ -19,25 +20,42 @@ export class HospitalStaffService {
     const professional = await prisma.professionalProfile.findUnique({ where: { cpf } })
     if (!professional) throw new NotFoundError("Nenhum profissional encontrado com este CPF")
 
+    const hospital = await prisma.hospitalProfile.findUnique({
+      where: { id: hospitalId },
+      select: { name: true },
+    })
+
     const existing = await prisma.hospitalStaff.findUnique({
       where: { hospitalId_professionalId: { hospitalId, professionalId: professional.id } },
     })
 
+    let result
     if (existing) {
       if (existing.status === StaffStatus.INACTIVE) {
-        return prisma.hospitalStaff.update({
+        result = await prisma.hospitalStaff.update({
           where: { id: existing.id },
           data: { status: StaffStatus.INVITED, invitedAt: new Date(), type: type ?? existing.type },
           include: { professional: { select: professionalSelect } },
         })
+      } else {
+        throw new ConflictError("Profissional já convidado ou vinculado a este hospital")
       }
-      throw new ConflictError("Profissional já convidado ou vinculado a este hospital")
+    } else {
+      result = await prisma.hospitalStaff.create({
+        data: { hospitalId, professionalId: professional.id, type: type ?? StaffType.FIXO },
+        include: { professional: { select: professionalSelect } },
+      })
     }
 
-    return prisma.hospitalStaff.create({
-      data: { hospitalId, professionalId: professional.id, type: type ?? StaffType.FIXO },
-      include: { professional: { select: professionalSelect } },
+    await notify({
+      userId: professional.userId,
+      type: "STAFF_INVITED",
+      title: "Convite de hospital",
+      message: `${hospital?.name ?? "Um hospital"} convidou você para fazer parte da equipe`,
+      link: "/profissional/hospitais",
     })
+
+    return result
   }
 
   static async updateType(id: string, hospitalId: string, input: UpdateStaffTypeInput) {
@@ -74,14 +92,30 @@ export class HospitalStaffService {
   }
 
   static async deactivate(id: string, hospitalId: string) {
-    const staff = await prisma.hospitalStaff.findUnique({ where: { id } })
+    const staff = await prisma.hospitalStaff.findUnique({
+      where: { id },
+      include: {
+        professional: { select: { userId: true } },
+        hospital: { select: { name: true } },
+      },
+    })
     if (!staff) throw new NotFoundError("Vínculo não encontrado")
     if (staff.hospitalId !== hospitalId) throw new ForbiddenError("Sem permissão para gerenciar este vínculo")
 
-    return prisma.hospitalStaff.update({
+    const result = await prisma.hospitalStaff.update({
       where: { id },
       data: { status: StaffStatus.INACTIVE },
     })
+
+    await notify({
+      userId: staff.professional.userId,
+      type: "STAFF_REMOVED",
+      title: "Removido da equipe",
+      message: `Você foi removido da equipe de ${staff.hospital.name}`,
+      link: "/profissional/hospitais",
+    })
+
+    return result
   }
 
   static async adjustBalance(id: string, hospitalId: string, input: AdjustBalanceInput) {

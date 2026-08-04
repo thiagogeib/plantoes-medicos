@@ -4,6 +4,7 @@ import { type FC } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
+import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -26,7 +27,12 @@ export const Header: FC = () => {
   const router = useRouter()
   const { user, clearAuth } = useAuthStore()
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout', {})
+    } catch {
+      // segue o logout local mesmo se a chamada falhar — sessão expira sozinha
+    }
     clearAuth()
     router.push('/login')
   }

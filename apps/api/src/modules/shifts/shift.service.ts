@@ -1,9 +1,10 @@
-import { ShiftStatus, SwapRequestStatus } from "@prisma/client"
+import { ShiftStatus, SwapRequestStatus, ApplicationStatus } from "@prisma/client"
 import { prisma } from "../../prisma/client"
 import { NotFoundError, ForbiddenError, ConflictError, AppError } from "../../shared/errors/AppError"
 import { paginate, paginationMeta } from "../../shared/helpers/pagination"
 import type { CreateShiftInput, UpdateShiftInput, ShiftFilters } from "./shift.dto"
 import { notifyProfessionalsAboutNewShift } from "../../shared/services/shift-notification.service"
+import { notify } from "../../shared/services/notification.service"
 import { haversineKm } from "../../shared/helpers/geo"
 import { refundLeaveRequestForShift } from "../leave-requests/leave-request-expiration.service"
 
@@ -256,7 +257,7 @@ export class ShiftService {
 
     const willCancel = input.status === ShiftStatus.CANCELLED && shift.status !== ShiftStatus.CANCELLED
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const updatedShift = await tx.shift.update({
         where: { id },
         data: updateData,
@@ -271,16 +272,37 @@ export class ShiftService {
         },
       })
 
+      let affectedApplications: { professional: { userId: string } }[] = []
+
       if (willCancel) {
         await tx.shiftSwapRequest.updateMany({
           where: { shiftId: id, status: SwapRequestStatus.OPEN },
           data: { status: SwapRequestStatus.CANCELLED },
         })
         await refundLeaveRequestForShift(tx, id, hospitalId)
+        affectedApplications = await tx.application.findMany({
+          where: {
+            shiftId: id,
+            status: { in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION, ApplicationStatus.ACCEPTED] },
+          },
+          include: { professional: { select: { userId: true } } },
+        })
       }
 
-      return updatedShift
+      return { updatedShift, affectedApplications }
     })
+
+    for (const application of result.affectedApplications) {
+      await notify({
+        userId: application.professional.userId,
+        type: "SHIFT_CANCELLED",
+        title: "Plantão cancelado",
+        message: `O plantão "${result.updatedShift.title}" foi cancelado pelo hospital`,
+        link: "/profissional/candidaturas",
+      })
+    }
+
+    return result.updatedShift
   }
 
   static async cancelShift(id: string, hospitalId: string) {
@@ -290,7 +312,7 @@ export class ShiftService {
     if (shift.status === ShiftStatus.FILLED) throw new ConflictError("Não é possível cancelar um plantão já preenchido")
     if (shift.status === ShiftStatus.CANCELLED) throw new ConflictError("Plantão já está cancelado")
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const updatedShift = await tx.shift.update({
         where: { id },
         data: { status: ShiftStatus.CANCELLED },
@@ -303,8 +325,28 @@ export class ShiftService {
 
       await refundLeaveRequestForShift(tx, id, hospitalId)
 
-      return updatedShift
+      const affectedApplications = await tx.application.findMany({
+        where: {
+          shiftId: id,
+          status: { in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION, ApplicationStatus.ACCEPTED] },
+        },
+        include: { professional: { select: { userId: true } } },
+      })
+
+      return { updatedShift, affectedApplications }
     })
+
+    for (const application of result.affectedApplications) {
+      await notify({
+        userId: application.professional.userId,
+        type: "SHIFT_CANCELLED",
+        title: "Plantão cancelado",
+        message: `O plantão "${result.updatedShift.title}" foi cancelado pelo hospital`,
+        link: "/profissional/candidaturas",
+      })
+    }
+
+    return result.updatedShift
   }
 
   static async hardDeleteShift(id: string, hospitalId: string) {
