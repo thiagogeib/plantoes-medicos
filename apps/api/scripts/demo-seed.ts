@@ -23,6 +23,7 @@ import {
   CouncilType,
   CompensationType,
 } from "@prisma/client"
+import { geocodeByZipCode } from "../src/shared/services/geocoding.service"
 
 const prisma = new PrismaClient()
 const DEMO_PASSWORD = "Demo@2026"
@@ -45,8 +46,12 @@ async function upsertHospital(input: {
   email: string
   name: string
   cnpj: string
+  street: string
+  number: string
+  neighborhood: string
   city: string
   state: string
+  zipCode: string
 }) {
   const passwordHash = await argon2.hash(DEMO_PASSWORD, ARGON2_OPTIONS)
   const user = await prisma.user.upsert({
@@ -62,18 +67,36 @@ async function upsertHospital(input: {
           name: input.name,
           cnpj: input.cnpj,
           phone: "11988880000",
-          street: "Av. Demonstração",
-          number: "100",
-          neighborhood: "Centro",
+          street: input.street,
+          number: input.number,
+          neighborhood: input.neighborhood,
           city: input.city,
           state: input.state,
-          zipCode: "01000000",
+          zipCode: input.zipCode,
         },
       },
     },
     include: { hospitalProfile: true },
   })
   const profile = user.hospitalProfile ?? (await prisma.hospitalProfile.findUnique({ where: { userId: user.id } }))
+  if (profile!.latitude == null) {
+    const geo = await geocodeByZipCode(input.zipCode)
+    if (geo) {
+      await prisma.hospitalProfile.update({
+        where: { id: profile!.id },
+        data: {
+          street: input.street,
+          number: input.number,
+          neighborhood: input.neighborhood,
+          zipCode: input.zipCode,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        },
+      })
+    } else {
+      console.warn(`  ⚠ Geocodificação falhou para ${input.name} (CEP ${input.zipCode}) — mapa não terá pin para este hospital`)
+    }
+  }
   return { userId: user.id, hospitalId: profile!.id }
 }
 
@@ -86,6 +109,7 @@ async function upsertProfessional(input: {
   councilState: string
   city: string
   state: string
+  zipCode: string
   specialtyIds: string[]
 }) {
   const passwordHash = await argon2.hash(DEMO_PASSWORD, ARGON2_OPTIONS)
@@ -107,6 +131,7 @@ async function upsertProfessional(input: {
           councilState: input.councilState,
           city: input.city,
           state: input.state,
+          zipCode: input.zipCode,
           specialties: { create: input.specialtyIds.map((specialtyId) => ({ specialtyId })) },
         },
       },
@@ -115,6 +140,17 @@ async function upsertProfessional(input: {
   })
   const profile =
     user.professionalProfile ?? (await prisma.professionalProfile.findUnique({ where: { userId: user.id } }))
+  if (profile!.latitude == null) {
+    const geo = await geocodeByZipCode(input.zipCode)
+    if (geo) {
+      await prisma.professionalProfile.update({
+        where: { id: profile!.id },
+        data: { zipCode: input.zipCode, latitude: geo.latitude, longitude: geo.longitude },
+      })
+    } else {
+      console.warn(`  ⚠ Geocodificação falhou para ${input.name} (CEP ${input.zipCode}) — busca por raio não funcionará para ele`)
+    }
+  }
   return { userId: user.id, professionalId: profile!.id }
 }
 
@@ -227,15 +263,23 @@ async function main() {
     email: "hospital.saude@gmail.com",
     name: "Hospital Saúde Teste",
     cnpj: "11222333000181",
+    street: "Avenida Paulista",
+    number: "1578",
+    neighborhood: "Bela Vista",
     city: "São Paulo",
     state: "SP",
+    zipCode: "01310200",
   })
   const h2 = await upsertHospital({
     email: "hospital.vidanova@demo.plantoesmed.com.br",
     name: "Hospital Vida Nova",
     cnpj: "44555666000122",
+    street: "Avenida Atlântica",
+    number: "1702",
+    neighborhood: "Copacabana",
     city: "Rio de Janeiro",
     state: "RJ",
+    zipCode: "22021001",
   })
   console.log("✓ Hospitais:", h1.hospitalId, h2.hospitalId)
 
@@ -249,6 +293,7 @@ async function main() {
     councilState: "SP",
     city: "São Paulo",
     state: "SP",
+    zipCode: "01311000",
     specialtyIds: [specialtyId("Clínica Médica"), specialtyId("UTI Adulto")],
   })
   const p2ExistingProfile = await prisma.professionalProfile.findFirst({ where: { name: "Medico Cobertura" } })
@@ -257,6 +302,16 @@ async function main() {
     const passwordHash = await argon2.hash(DEMO_PASSWORD, ARGON2_OPTIONS)
     await prisma.user.update({ where: { id: p2ExistingProfile.userId }, data: { passwordHash } })
     p2 = { userId: p2ExistingProfile.userId, professionalId: p2ExistingProfile.id }
+    if (p2ExistingProfile.latitude == null) {
+      const zip = p2ExistingProfile.zipCode ?? "01311000"
+      const geo = await geocodeByZipCode(zip)
+      if (geo) {
+        await prisma.professionalProfile.update({
+          where: { id: p2ExistingProfile.id },
+          data: { zipCode: zip, latitude: geo.latitude, longitude: geo.longitude },
+        })
+      }
+    }
   } else {
     p2 = await upsertProfessional({
       email: "medico.cobertura@demo.plantoesmed.com.br",
@@ -267,6 +322,7 @@ async function main() {
       councilState: "SP",
       city: "São Paulo",
       state: "SP",
+      zipCode: "01311000",
       specialtyIds: [specialtyId("Cardiologia")],
     })
   }
@@ -279,6 +335,7 @@ async function main() {
     councilState: "SP",
     city: "São Paulo",
     state: "SP",
+    zipCode: "05407002",
     specialtyIds: [specialtyId("Emergência"), specialtyId("Pediatria")],
   })
   const p4 = await upsertProfessional({
@@ -290,6 +347,7 @@ async function main() {
     councilState: "RJ",
     city: "Rio de Janeiro",
     state: "RJ",
+    zipCode: "20040020",
     specialtyIds: [specialtyId("Ortopedia"), specialtyId("Cirurgia Geral")],
   })
   console.log("✓ Profissionais:", p1.professionalId, p2.professionalId, p3.professionalId, p4.professionalId)
@@ -313,10 +371,13 @@ async function main() {
     hourBankMinutes: 0,
     availableDaysOff: 3,
   })
+  // FIXO é obrigatório — solicitar folga exige vínculo fixo ativo (ver leave-request.service.ts).
+  // hourBankMinutes reflete o saldo JÁ DESCONTADO da folga de 720min criada mais abaixo
+  // (assim como o fluxo real desconta na hora do pedido), então fica pouco de propósito.
   await upsertStaffLink(h2.hospitalId, p4.professionalId, {
     status: StaffStatus.ACTIVE,
-    type: StaffType.AVULSO,
-    hourBankMinutes: 300,
+    type: StaffType.FIXO,
+    hourBankMinutes: 60,
     availableDaysOff: 0,
   })
   // convite ainda pendente — profissional 3 nunca aceitou
