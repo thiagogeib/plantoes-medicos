@@ -331,7 +331,7 @@ async function main() {
     name: "Juliana Alves",
     cpf: "22233344455",
     councilType: CouncilType.COREN,
-    councilNumber: "COREN-778899",
+    councilNumber: "778899",
     councilState: "SP",
     city: "São Paulo",
     state: "SP",

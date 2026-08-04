@@ -56,6 +56,16 @@ export class ApplicationController {
     }
   }
 
+  static async listForHospital(req: Request, res: Response, next: NextFunction) {
+    try {
+      const filters = applicationFiltersSchema.parse(req.query)
+      const result = await ApplicationService.listForHospital(req.user.userId, filters)
+      res.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
   static async myStats(req: Request, res: Response, next: NextFunction) {
     try {
       const professional = await prisma.professionalProfile.findUnique({

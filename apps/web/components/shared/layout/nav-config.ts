@@ -25,6 +25,7 @@ export const navByRole: Record<UserRole, NavItem[]> = {
   HOSPITAL: [
     { label: 'Dashboard', href: '/hospital/dashboard', icon: LayoutDashboard },
     { label: 'Plantões', href: '/hospital/plantoes', icon: Calendar },
+    { label: 'Candidaturas', href: '/hospital/candidaturas', icon: FileText },
     { label: 'Minha Equipe', href: '/hospital/equipe', icon: Users },
     { label: 'Trocas', href: '/hospital/trocas', icon: Repeat },
     { label: 'Folgas', href: '/hospital/folgas', icon: CalendarOff },

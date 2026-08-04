@@ -18,9 +18,9 @@ export interface Charge {
 export interface Application {
   id: string
   shiftId: string
-  shift?: Pick<Shift, 'hospitalId' | 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'hospital'>
+  shift?: Pick<Shift, 'hospitalId' | 'title' | 'date' | 'startTime' | 'endTime' | 'location' | 'hospital' | 'specialty' | 'slots' | 'filledSlots'>
   professionalId: string
-  professional?: Pick<ProfessionalProfile, 'name' | 'councilType' | 'councilNumber' | 'specialties'>
+  professional?: Pick<ProfessionalProfile, 'name' | 'councilType' | 'councilNumber' | 'councilState' | 'specialties'>
   status: ApplicationStatus
   message?: string
   rejectionReason?: string

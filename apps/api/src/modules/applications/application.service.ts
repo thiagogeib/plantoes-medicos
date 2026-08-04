@@ -149,6 +149,40 @@ export class ApplicationService {
     return { data, pagination: paginationMeta(total, page, limit) }
   }
 
+  static async listForHospital(hospitalUserId: string, filters: ApplicationFilters) {
+    const { status, page, limit } = filters
+    const { skip, take } = paginate(page, limit)
+
+    const hospital = await prisma.hospitalProfile.findUnique({
+      where: { userId: hospitalUserId },
+      select: { id: true },
+    })
+    if (!hospital) throw new NotFoundError("Perfil de hospital não encontrado")
+
+    const where: Record<string, unknown> = {
+      shift: { hospitalId: hospital.id },
+      status: status ?? { in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION] },
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.application.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          shift: { include: { specialty: true } },
+          professional: {
+            select: { id: true, name: true, councilType: true, councilNumber: true, councilState: true },
+          },
+        },
+      }),
+      prisma.application.count({ where }),
+    ])
+
+    return { data, pagination: paginationMeta(total, page, limit) }
+  }
+
   static async getApplication(id: string, requestingUserId: string, role: string) {
     const application = await prisma.application.findUnique({
       where: { id },

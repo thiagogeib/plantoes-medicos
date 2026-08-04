@@ -19,6 +19,13 @@ applicationRouter.get(
   ApplicationController.myStats
 )
 
+applicationRouter.get(
+  "/hospital",
+  authenticate,
+  authorize("HOSPITAL"),
+  ApplicationController.listForHospital
+)
+
 applicationRouter.get("/:id", authenticate, ApplicationController.getOne)
 
 applicationRouter.patch(
