@@ -41,14 +41,14 @@ export default function EsqueciSenhaPage() {
   if (sent) {
     return (
       <div className="w-full max-w-md space-y-6 text-center">
-        <MailCheck className="h-10 w-10 text-blue-600 mx-auto" />
+        <MailCheck className="h-10 w-10 text-indigo-600 mx-auto" />
         <div>
           <h1 className="text-xl font-bold text-slate-900">Verifique seu email</h1>
           <p className="text-slate-500 mt-2 text-sm">
             Se este email estiver cadastrado, você vai receber um link para redefinir sua senha em instantes.
           </p>
         </div>
-        <Link href="/login" className="text-blue-600 font-medium hover:underline text-sm">
+        <Link href="/login" className="text-indigo-600 font-medium hover:underline text-sm">
           Voltar para o login
         </Link>
       </div>
@@ -94,7 +94,7 @@ export default function EsqueciSenhaPage() {
       </Card>
 
       <div className="text-center text-sm">
-        <Link href="/login" className="text-blue-600 font-medium hover:underline">
+        <Link href="/login" className="text-indigo-600 font-medium hover:underline">
           Voltar para o login
         </Link>
       </div>

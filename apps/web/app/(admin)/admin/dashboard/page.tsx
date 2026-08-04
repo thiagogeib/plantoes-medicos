@@ -73,13 +73,13 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <TrendingUp className="h-5 w-5 text-indigo-600" />
               Taxa de preenchimento
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-3">
-              <span className="text-5xl font-bold text-blue-600">
+              <span className="text-5xl font-bold text-indigo-600">
                 {metrics.fillRate.toFixed(1)}
               </span>
               <span className="text-2xl text-slate-400 mb-1">%</span>

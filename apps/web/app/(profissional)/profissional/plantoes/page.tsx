@@ -3,10 +3,17 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Building2, LayoutGrid, List as ListIcon, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Search, Building2, LayoutGrid, List as ListIcon, MapPin, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useShifts } from '@/hooks/use-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
+import { Skeleton } from '@/components/ui/skeleton'
+
+const ShiftsMap = dynamic(
+  () => import('@/components/shared/plantao/ShiftsMap').then((m) => m.ShiftsMap),
+  { ssr: false, loading: () => <Skeleton className="h-[440px] w-full" /> }
+)
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -52,7 +59,7 @@ export default function ProfissionalPlantoesPage() {
   const [specialties, setSpecialties] = useState<Specialty[]>([])
   const [swaps, setSwaps] = useState<ShiftSwapRequest[]>([])
   const [busySwapId, setBusySwapId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
+  const [viewMode, setViewMode] = useState<'card' | 'list' | 'map'>('card')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [applyingBulk, setApplyingBulk] = useState(false)
@@ -65,7 +72,8 @@ export default function ProfissionalPlantoesPage() {
     raioKm: raioKm ? Number(raioKm) : undefined,
     date: date || undefined,
     diaSemana: diaSemana === '' ? undefined : diaSemana,
-    page,
+    page: viewMode === 'map' ? 1 : page,
+    limit: viewMode === 'map' ? 100 : undefined,
   })
 
   const loadSwaps = useCallback(async () => {
@@ -166,7 +174,7 @@ export default function ProfissionalPlantoesPage() {
           >
             <SlidersHorizontal className="h-4 w-4 mr-1.5" />
             Filtros
-            {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-blue-600" />}
+            {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600" />}
             <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
           </Button>
           <div className="flex gap-1 border rounded-md p-0.5">
@@ -187,6 +195,15 @@ export default function ProfissionalPlantoesPage() {
               aria-label="Ver em lista"
             >
               <ListIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'map' ? 'default' : 'ghost'}
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('map')}
+              aria-label="Ver no mapa"
+            >
+              <MapPin className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -321,7 +338,9 @@ export default function ProfissionalPlantoesPage() {
         </div>
       )}
 
-      {viewMode === 'card' ? (
+      {viewMode === 'map' ? (
+        <ShiftsMap shifts={shifts} />
+      ) : viewMode === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {loading
             ? Array.from({ length: 6 }).map((_, i) => <PlantaoCard key={i} />)
@@ -431,7 +450,7 @@ export default function ProfissionalPlantoesPage() {
         </div>
       )}
 
-      {totalPages > 1 && (
+      {viewMode !== 'map' && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"

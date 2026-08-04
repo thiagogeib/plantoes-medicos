@@ -107,8 +107,8 @@ export default function CadastroHospitalPage() {
       </div>
 
       <div className="flex gap-2 mb-2">
-        <div className={`flex-1 h-1.5 rounded-full ${step >= 0 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-        <div className={`flex-1 h-1.5 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+        <div className={`flex-1 h-1.5 rounded-full ${step >= 0 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+        <div className={`flex-1 h-1.5 rounded-full ${step >= 1 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
       </div>
 
       <Card>
@@ -360,7 +360,7 @@ export default function CadastroHospitalPage() {
 
       <p className="text-center text-sm text-slate-500">
         Já tem conta?{' '}
-        <Link href="/login" className="text-blue-600 font-medium hover:underline">
+        <Link href="/login" className="text-indigo-600 font-medium hover:underline">
           Fazer login
         </Link>
       </p>

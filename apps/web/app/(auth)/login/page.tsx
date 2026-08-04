@@ -93,7 +93,7 @@ export default function LoginPage() {
                   <FormItem>
                     <div className="flex items-center justify-between">
                       <FormLabel>Senha</FormLabel>
-                      <Link href="/esqueci-senha" className="text-xs text-blue-600 hover:underline">
+                      <Link href="/esqueci-senha" className="text-xs text-indigo-600 hover:underline">
                         Esqueci minha senha
                       </Link>
                     </div>
@@ -121,14 +121,14 @@ export default function LoginPage() {
         <div className="flex justify-center gap-4">
           <Link
             href="/cadastro/hospital"
-            className="text-blue-600 font-medium hover:underline"
+            className="text-indigo-600 font-medium hover:underline"
           >
             Cadastrar hospital
           </Link>
           <span className="text-slate-300">•</span>
           <Link
             href="/cadastro/profissional"
-            className="text-blue-600 font-medium hover:underline"
+            className="text-indigo-600 font-medium hover:underline"
           >
             Cadastrar profissional
           </Link>

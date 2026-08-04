@@ -13,9 +13,9 @@ interface MetricaCardProps {
 
 const colorConfig = {
   blue: {
-    bg: 'bg-blue-50',
-    text: 'text-blue-600',
-    icon: 'text-blue-600',
+    bg: 'bg-indigo-50',
+    text: 'text-indigo-600',
+    icon: 'text-indigo-600',
   },
   emerald: {
     bg: 'bg-emerald-50',

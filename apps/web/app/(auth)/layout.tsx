@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="flex items-center gap-2 px-6 py-4 border-b border-slate-200 bg-white">
         <Link href="/" className="flex items-center gap-2">
-          <Stethoscope className="h-6 w-6 text-blue-600" />
+          <Stethoscope className="h-6 w-6 text-indigo-600" />
           <span className="font-bold text-slate-900">PlantoesMed</span>
         </Link>
       </header>

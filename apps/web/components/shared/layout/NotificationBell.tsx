@@ -76,7 +76,7 @@ export const NotificationBell: FC = () => {
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-indigo-600 hover:underline"
             >
               Marcar todas como lidas
             </button>
@@ -96,7 +96,7 @@ export const NotificationBell: FC = () => {
             >
               <div className="flex items-center gap-2 w-full">
                 {!notification.read && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 shrink-0" />
                 )}
                 <span
                   className={

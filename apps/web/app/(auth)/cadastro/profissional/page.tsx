@@ -139,8 +139,8 @@ export default function CadastroProfissionalPage() {
       </div>
 
       <div className="flex gap-2 mb-2">
-        <div className={`flex-1 h-1.5 rounded-full ${step >= 0 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-        <div className={`flex-1 h-1.5 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+        <div className={`flex-1 h-1.5 rounded-full ${step >= 0 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+        <div className={`flex-1 h-1.5 rounded-full ${step >= 1 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
       </div>
 
       <Card>
@@ -408,7 +408,7 @@ export default function CadastroProfissionalPage() {
                                   onClick={() => toggleSpecialty(sp.id)}
                                   className={`px-3 py-1 text-sm rounded-full border transition-colors ${
                                     selectedIds.includes(sp.id)
-                                      ? 'border-blue-600 bg-blue-50 text-blue-600'
+                                      ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
                                       : 'border-slate-200 text-slate-600 hover:border-slate-300'
                                   }`}
                                 >
@@ -448,7 +448,7 @@ export default function CadastroProfissionalPage() {
 
       <p className="text-center text-sm text-slate-500">
         Já tem conta?{' '}
-        <Link href="/login" className="text-blue-600 font-medium hover:underline">
+        <Link href="/login" className="text-indigo-600 font-medium hover:underline">
           Fazer login
         </Link>
       </p>

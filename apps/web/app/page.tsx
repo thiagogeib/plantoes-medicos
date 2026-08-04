@@ -41,7 +41,7 @@ function StepItem({
 }) {
   return (
     <div className="flex gap-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
         <Icon className="h-4.5 w-4.5" />
       </div>
       <div>
@@ -60,7 +60,7 @@ export default async function LandingPage() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
+            <Stethoscope className="h-6 w-6 text-indigo-600" />
             <span className="font-bold text-lg text-slate-900">PlantoesMed</span>
           </div>
           <div className="flex items-center gap-2">
@@ -74,12 +74,12 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      <section className="bg-blue-600 text-white">
+      <section className="bg-indigo-600 text-white">
         <div className="max-w-5xl mx-auto px-4 py-16 sm:py-20 text-center">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-balance">
             A escala do plantão não devia morar num grupo de WhatsApp
           </h1>
-          <p className="text-blue-100 text-base sm:text-lg max-w-2xl mx-auto mb-8 text-balance">
+          <p className="text-indigo-100 text-base sm:text-lg max-w-2xl mx-auto mb-8 text-balance">
             PlantoesMed é o lugar onde o hospital publica o plantão e o profissional se candidata,
             direto — sem planilha, sem intermediário, sem vaga perdida por falta de aviso.
           </p>
@@ -137,7 +137,7 @@ export default async function LandingPage() {
       <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
               Capítulo 1 — pra quem publica o plantão
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 mb-6 text-balance">
@@ -184,7 +184,7 @@ export default async function LandingPage() {
               />
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+              <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
                 Capítulo 2 — pra quem cobre o plantão
               </span>
               <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 mb-6 text-balance">
@@ -219,7 +219,7 @@ export default async function LandingPage() {
       <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
               Capítulo 3 — e depois?
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 mb-4 text-balance">

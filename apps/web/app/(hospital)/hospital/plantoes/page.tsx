@@ -124,7 +124,7 @@ export default function HospitalPlantoesPage() {
       >
         <SlidersHorizontal className="h-4 w-4 mr-1.5" />
         Filtros
-        {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-blue-600" />}
+        {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600" />}
         <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
       </Button>
 

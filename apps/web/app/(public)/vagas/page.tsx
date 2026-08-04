@@ -96,7 +96,7 @@ export default function VagasPublicPage() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
+            <Stethoscope className="h-6 w-6 text-indigo-600" />
             <span className="font-bold text-lg text-slate-900">PlantoesMed</span>
           </div>
           <div className="flex items-center gap-2">
@@ -111,9 +111,9 @@ export default function VagasPublicPage() {
       </header>
 
       {/* Hero */}
-      <div className="bg-blue-600 text-white py-12 px-4 text-center">
+      <div className="bg-indigo-600 text-white py-12 px-4 text-center">
         <h1 className="text-3xl font-bold mb-2">Plantões disponíveis</h1>
-        <p className="text-blue-100 text-sm">
+        <p className="text-indigo-100 text-sm">
           Encontre oportunidades de plantão e candidate-se em minutos
         </p>
       </div>
@@ -259,7 +259,7 @@ export default function VagasPublicPage() {
                       </div>
 
                       <div className="pt-1">
-                        <span className="text-blue-600 text-xs font-medium">Ver detalhes →</span>
+                        <span className="text-indigo-600 text-xs font-medium">Ver detalhes →</span>
                       </div>
                     </CardContent>
                   </Card>

@@ -5,12 +5,13 @@ import { Calendar, CheckCircle, Archive, Plus } from 'lucide-react'
 import { useHospitalDashboard } from '@/hooks/use-hospital-dashboard'
 import { MetricaCard } from '@/components/shared/admin/MetricaCard'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
+import { OnboardingChecklist } from '@/components/shared/dashboard/OnboardingChecklist'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function HospitalDashboardPage() {
   const router = useRouter()
-  const { metrics, recentShifts, loading } = useHospitalDashboard()
+  const { metrics, recentShifts, hasPublishedShift, hasStaff, loading } = useHospitalDashboard()
 
   return (
     <div className="space-y-6">
@@ -24,6 +25,25 @@ export default function HospitalDashboardPage() {
           Novo plantão
         </Button>
       </div>
+
+      {!loading && (
+        <OnboardingChecklist
+          items={[
+            {
+              label: 'Publique seu primeiro plantão',
+              done: hasPublishedShift,
+              href: '/hospital/plantoes/novo',
+              cta: 'Publicar',
+            },
+            {
+              label: 'Convide um profissional para sua equipe',
+              done: hasStaff,
+              href: '/hospital/equipe',
+              cta: 'Convidar',
+            },
+          ]}
+        />
+      )}
 
       <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
         {loading ? (
@@ -82,7 +102,7 @@ export default function HospitalDashboardPage() {
               Nenhum plantão publicado ainda.{' '}
               <button
                 onClick={() => router.push('/hospital/plantoes/novo')}
-                className="text-blue-600 hover:underline"
+                className="text-indigo-600 hover:underline"
               >
                 Publicar primeiro plantão
               </button>

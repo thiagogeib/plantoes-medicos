@@ -47,7 +47,7 @@ export function VagaDetailClient() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
+            <Stethoscope className="h-6 w-6 text-indigo-600" />
             <span className="font-bold text-lg text-slate-900">PlantoesMed</span>
           </div>
           <div className="flex items-center gap-2">
@@ -131,11 +131,11 @@ export function VagaDetailClient() {
               </div>
 
               {shift.slots - shift.filledSlots > 0 && (
-                <div className="rounded-lg bg-blue-50 border border-blue-100 p-4 space-y-3">
-                  <p className="text-sm text-blue-800 font-medium">
+                <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-4 space-y-3">
+                  <p className="text-sm text-indigo-800 font-medium">
                     Interessado neste plantão?
                   </p>
-                  <p className="text-xs text-blue-700">
+                  <p className="text-xs text-indigo-700">
                     {user
                       ? 'Clique abaixo para se candidatar.'
                       : 'Crie sua conta gratuitamente e candidate-se em menos de 2 minutos.'}
@@ -144,7 +144,7 @@ export function VagaDetailClient() {
                     {user ? 'Candidatar-se' : 'Criar conta e candidatar-se'}
                   </Button>
                   {!user && (
-                    <p className="text-xs text-blue-600">
+                    <p className="text-xs text-indigo-600">
                       Já tem conta?{' '}
                       <Link href="/login" className="underline font-medium">Faça login</Link>
                     </p>

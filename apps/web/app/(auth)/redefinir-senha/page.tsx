@@ -71,7 +71,7 @@ function RedefinirSenhaForm() {
         <p className="text-slate-500 text-sm">
           Este link de redefinição está incompleto ou expirou.
         </p>
-        <Link href="/esqueci-senha" className="text-blue-600 font-medium hover:underline text-sm">
+        <Link href="/esqueci-senha" className="text-indigo-600 font-medium hover:underline text-sm">
           Solicitar novo link
         </Link>
       </div>

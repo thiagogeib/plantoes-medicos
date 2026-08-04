@@ -37,7 +37,7 @@ export const BottomNav: FC<BottomNavProps> = ({ role }) => {
                 href={item.href}
                 className={cn(
                   'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors',
-                  isActive ? 'text-blue-600' : 'text-slate-500'
+                  isActive ? 'text-indigo-600' : 'text-slate-500'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -52,7 +52,7 @@ export const BottomNav: FC<BottomNavProps> = ({ role }) => {
               aria-label="Mais opções do menu"
               className={cn(
                 'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors',
-                restHasActive ? 'text-blue-600' : 'text-slate-500'
+                restHasActive ? 'text-indigo-600' : 'text-slate-500'
               )}
             >
               <Menu className="h-5 w-5" />
@@ -77,7 +77,7 @@ export const BottomNav: FC<BottomNavProps> = ({ role }) => {
                     href={item.href}
                     className={cn(
                       'flex flex-col items-center gap-2 rounded-lg px-2 py-4 text-center text-xs font-medium transition-colors',
-                      isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-100'
+                      isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100'
                     )}
                   >
                     <Icon className="h-5 w-5" />

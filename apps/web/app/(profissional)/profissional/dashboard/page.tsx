@@ -134,7 +134,7 @@ export default function ProfissionalDashboardPage() {
             Nenhuma candidatura ainda.{' '}
             <button
               onClick={() => router.push('/profissional/plantoes')}
-              className="text-blue-600 hover:underline"
+              className="text-indigo-600 hover:underline"
             >
               Buscar plantões
             </button>
