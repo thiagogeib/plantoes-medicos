@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -37,6 +38,8 @@ const dashboardMap: Record<string, string> = {
 export default function LoginPage() {
   const router = useRouter()
   const { setAuth } = useAuthStore()
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -44,6 +47,7 @@ export default function LoginPage() {
   })
 
   const onSubmit = async (values: FormValues) => {
+    setUnverifiedEmail(null)
     try {
       const response = await apiClient.post<{ data: LoginResponse }>(
         '/auth/login',
@@ -54,7 +58,23 @@ export default function LoginPage() {
       router.push(dashboardMap[response.data.user.role] ?? '/login')
     } catch (err) {
       const error = err as ApiError
+      if (error?.error?.code === 'EMAIL_NOT_VERIFIED') {
+        setUnverifiedEmail(values.email)
+      }
       toast.error(error?.error?.message ?? 'Email ou senha incorretos')
+    }
+  }
+
+  const handleResend = async () => {
+    if (!unverifiedEmail) return
+    setResending(true)
+    try {
+      await apiClient.post('/auth/resend-verification', { email: unverifiedEmail })
+      toast.success('Reenviamos o link de confirmação para o seu e-mail.')
+    } catch {
+      toast.error('Erro ao reenviar o link de confirmação')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -113,6 +133,20 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
+
+          {unverifiedEmail && (
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <p>Confirme seu e-mail para entrar. Verifique sua caixa de entrada.</p>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="mt-1 font-medium text-amber-900 hover:underline disabled:opacity-60"
+              >
+                {resending ? 'Reenviando...' : 'Reenviar link de confirmação'}
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

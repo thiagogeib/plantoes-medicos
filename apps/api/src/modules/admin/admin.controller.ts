@@ -4,6 +4,9 @@ import {
   listUsersSchema,
   updateUserStatusSchema,
   adminShiftFiltersSchema,
+  adminSwapFiltersSchema,
+  adminLeaveFiltersSchema,
+  adminStaffFiltersSchema,
   adminCreateHospitalSchema,
   adminCreateProfessionalSchema,
   adminUpdateHospitalSchema,
@@ -103,6 +106,54 @@ export class AdminController {
       const filters = adminShiftFiltersSchema.parse(req.query)
       const result = await AdminService.listShifts(filters)
       res.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async listSwaps(req: Request, res: Response, next: NextFunction) {
+    try {
+      const filters = adminSwapFiltersSchema.parse(req.query)
+      const result = await AdminService.listSwaps(filters)
+      res.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async listLeaveRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const filters = adminLeaveFiltersSchema.parse(req.query)
+      const result = await AdminService.listLeaveRequests(filters)
+      res.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async listStaff(req: Request, res: Response, next: NextFunction) {
+    try {
+      const filters = adminStaffFiltersSchema.parse(req.query)
+      const result = await AdminService.listStaff(filters)
+      res.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async getRiskShifts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await AdminService.getRiskShifts()
+      res.json({ data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async getRecentActivity(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await AdminService.getRecentActivity()
+      res.json({ data })
     } catch (error) {
       next(error)
     }

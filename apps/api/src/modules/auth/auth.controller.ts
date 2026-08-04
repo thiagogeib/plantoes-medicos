@@ -1,6 +1,14 @@
 import { Request, Response, NextFunction } from "express"
 import { AuthService } from "./auth.service"
-import { LoginDTO, RegisterHospitalDTO, RegisterProfessionalDTO, ForgotPasswordDTO, ResetPasswordDTO } from "./auth.dto"
+import {
+  LoginDTO,
+  RegisterHospitalDTO,
+  RegisterProfessionalDTO,
+  ForgotPasswordDTO,
+  ResetPasswordDTO,
+  VerifyEmailDTO,
+  ResendVerificationDTO,
+} from "./auth.dto"
 
 const REFRESH_COOKIE_NAME = "refreshToken"
 
@@ -25,8 +33,12 @@ export class AuthController {
   static async registerHospital(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await AuthService.registerHospital(req.body as RegisterHospitalDTO)
-      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, refreshCookieOptions)
-      res.status(201).json({ data: { accessToken: result.accessToken, user: result.user } })
+      res.status(201).json({
+        data: {
+          user: result.user,
+          message: "Cadastro criado. Enviamos um link de confirmação para o seu e-mail.",
+        },
+      })
     } catch (err) {
       next(err)
     }
@@ -41,8 +53,12 @@ export class AuthController {
       const result = await AuthService.registerProfessional(
         req.body as RegisterProfessionalDTO
       )
-      res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, refreshCookieOptions)
-      res.status(201).json({ data: { accessToken: result.accessToken, user: result.user } })
+      res.status(201).json({
+        data: {
+          user: result.user,
+          message: "Cadastro criado. Enviamos um link de confirmação para o seu e-mail.",
+        },
+      })
     } catch (err) {
       next(err)
     }
@@ -100,6 +116,27 @@ export class AuthController {
       const { token, password } = req.body as ResetPasswordDTO
       await AuthService.resetPassword(token, password)
       res.status(200).json({ data: { message: "Senha redefinida com sucesso." } })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  static async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token } = req.body as VerifyEmailDTO
+      await AuthService.verifyEmail(token)
+      res.status(200).json({ data: { message: "E-mail confirmado com sucesso." } })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  static async resendVerification(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await AuthService.resendVerification((req.body as ResendVerificationDTO).email)
+      res.status(200).json({
+        data: { message: "Se este email estiver pendente de confirmação, você receberá um novo link." },
+      })
     } catch (err) {
       next(err)
     }

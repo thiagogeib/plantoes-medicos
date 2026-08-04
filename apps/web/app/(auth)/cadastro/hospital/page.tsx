@@ -89,7 +89,7 @@ export default function CadastroHospitalPage() {
         phone: payload.phone.replace(/\D/g, ''),
         zipCode: payload.zipCode.replace(/\D/g, ''),
       })
-      toast.success('Hospital cadastrado! Faça o login para continuar.')
+      toast.success('Hospital cadastrado! Confirme seu e-mail para poder entrar.')
       router.push('/login')
     } catch (err) {
       const error = err as ApiError

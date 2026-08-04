@@ -3,13 +3,14 @@ import jwt from "jsonwebtoken"
 import crypto from "crypto"
 import { prisma } from "../../prisma/client"
 import { AppError, ConflictError, UnauthorizedError } from "../../shared/errors/AppError"
-import { sendPasswordResetEmail } from "../../shared/services/email.service"
+import { sendPasswordResetEmail, sendVerificationEmail } from "../../shared/services/email.service"
 import { geocodeByZipCode } from "../../shared/services/geocoding.service"
 import { LoginDTO, RegisterHospitalDTO, RegisterProfessionalDTO } from "./auth.dto"
-import { Prisma, UserRole } from "@prisma/client"
+import { Prisma, UserRole, UserStatus } from "@prisma/client"
 
 const WEB_URL = process.env.WEB_URL ?? "https://plantoes-medicos-web.vercel.app"
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex")
@@ -25,6 +26,14 @@ const ARGON2_OPTIONS = {
 interface TokenPayload {
   accessToken: string
   refreshToken: string
+  user: {
+    id: string
+    email: string
+    role: UserRole
+  }
+}
+
+interface RegistrationResult {
   user: {
     id: string
     email: string
@@ -54,6 +63,22 @@ async function saveRefreshToken(userId: string, token: string): Promise<void> {
   })
 }
 
+async function issueVerificationEmail(userId: string, email: string): Promise<void> {
+  const rawToken = crypto.randomBytes(32).toString("hex")
+  const tokenHash = hashToken(rawToken)
+  const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS)
+
+  await prisma.emailVerificationToken.create({
+    data: { userId, tokenHash, expiresAt },
+  })
+
+  const link = `${WEB_URL}/verificar-email?token=${rawToken}`
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[DEV] Link de verificação de e-mail: ${link}`)
+  }
+  await sendVerificationEmail(email, link)
+}
+
 function handlePrismaConflict(err: unknown): never {
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
     const target = (err.meta?.target as string[]) ?? []
@@ -74,6 +99,13 @@ export class AuthService {
     const valid = await argon2.verify(user.passwordHash, data.password)
     if (!valid) throw new UnauthorizedError("Credenciais inválidas")
 
+    if (user.status === UserStatus.PENDING_VERIFICATION) {
+      throw new AppError(
+        "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.",
+        403,
+        "EMAIL_NOT_VERIFIED"
+      )
+    }
     if (user.status !== "ACTIVE") {
       throw new UnauthorizedError("Conta inativa. Entre em contato com o suporte.")
     }
@@ -89,7 +121,7 @@ export class AuthService {
     }
   }
 
-  static async registerHospital(data: RegisterHospitalDTO): Promise<TokenPayload> {
+  static async registerHospital(data: RegisterHospitalDTO): Promise<RegistrationResult> {
     const passwordHash = await argon2.hash(data.password, ARGON2_OPTIONS)
 
     try {
@@ -98,6 +130,7 @@ export class AuthService {
           email: data.email,
           passwordHash,
           role: UserRole.HOSPITAL,
+          status: UserStatus.PENDING_VERIFICATION,
           hospitalProfile: {
             create: {
               name: data.name,
@@ -116,10 +149,6 @@ export class AuthService {
         select: { id: true, email: true, role: true },
       })
 
-      const accessToken = issueAccessToken(user.id, user.role)
-      const refreshToken = issueRefreshToken(user.id)
-      await saveRefreshToken(user.id, refreshToken)
-
       const geo = await geocodeByZipCode(data.zipCode)
       if (geo) {
         await prisma.hospitalProfile.update({
@@ -128,13 +157,15 @@ export class AuthService {
         })
       }
 
-      return { accessToken, refreshToken, user }
+      await issueVerificationEmail(user.id, user.email)
+
+      return { user }
     } catch (err) {
       handlePrismaConflict(err)
     }
   }
 
-  static async registerProfessional(data: RegisterProfessionalDTO): Promise<TokenPayload> {
+  static async registerProfessional(data: RegisterProfessionalDTO): Promise<RegistrationResult> {
     const passwordHash = await argon2.hash(data.password, ARGON2_OPTIONS)
 
     try {
@@ -142,6 +173,7 @@ export class AuthService {
         data: {
           email: data.email,
           passwordHash,
+          status: UserStatus.PENDING_VERIFICATION,
           role: UserRole.PROFESSIONAL,
           professionalProfile: {
             create: {
@@ -163,10 +195,6 @@ export class AuthService {
         select: { id: true, email: true, role: true },
       })
 
-      const accessToken = issueAccessToken(user.id, user.role)
-      const refreshToken = issueRefreshToken(user.id)
-      await saveRefreshToken(user.id, refreshToken)
-
       if (data.zipCode) {
         const geo = await geocodeByZipCode(data.zipCode)
         if (geo) {
@@ -177,7 +205,9 @@ export class AuthService {
         }
       }
 
-      return { accessToken, refreshToken, user }
+      await issueVerificationEmail(user.id, user.email)
+
+      return { user }
     } catch (err) {
       handlePrismaConflict(err)
     }
@@ -300,5 +330,26 @@ export class AuthService {
       prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
       prisma.refreshToken.deleteMany({ where: { userId: record.userId } }),
     ])
+  }
+
+  static async verifyEmail(token: string): Promise<void> {
+    const tokenHash = hashToken(token)
+    const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash } })
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new UnauthorizedError("Link de verificação inválido ou expirado")
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: record.userId }, data: { status: UserStatus.ACTIVE } }),
+      prisma.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    ])
+  }
+
+  static async resendVerification(email: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user || user.status !== UserStatus.PENDING_VERIFICATION) return
+
+    await issueVerificationEmail(user.id, user.email)
   }
 }

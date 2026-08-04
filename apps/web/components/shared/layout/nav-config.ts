@@ -46,6 +46,9 @@ export const navByRole: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Usuários', href: '/admin/usuarios', icon: Users },
     { label: 'Plantões', href: '/admin/plantoes', icon: Calendar },
+    { label: 'Trocas', href: '/admin/trocas', icon: Repeat },
+    { label: 'Folgas', href: '/admin/folgas', icon: CalendarOff },
+    { label: 'Equipe', href: '/admin/equipe', icon: Building2 },
   ],
 }
 

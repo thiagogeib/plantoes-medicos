@@ -119,7 +119,7 @@ export default function CadastroProfissionalPage() {
         phone: payload.phone.replace(/\D/g, ''),
         zipCode: payload.zipCode ? payload.zipCode : undefined,
       })
-      toast.success('Profissional cadastrado! Faça o login para continuar.')
+      toast.success('Profissional cadastrado! Confirme seu e-mail para poder entrar.')
       router.push('/login')
     } catch (err) {
       const error = err as ApiError

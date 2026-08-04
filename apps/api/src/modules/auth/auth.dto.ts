@@ -57,8 +57,18 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 })
 
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, "Token obrigatório"),
+})
+
+export const resendVerificationSchema = z.object({
+  email: z.string().email("Email inválido"),
+})
+
 export type LoginDTO = z.infer<typeof loginSchema>
 export type RegisterHospitalDTO = z.infer<typeof registerHospitalSchema>
 export type RegisterProfessionalDTO = z.infer<typeof registerProfessionalSchema>
 export type ForgotPasswordDTO = z.infer<typeof forgotPasswordSchema>
 export type ResetPasswordDTO = z.infer<typeof resetPasswordSchema>
+export type VerifyEmailDTO = z.infer<typeof verifyEmailSchema>
+export type ResendVerificationDTO = z.infer<typeof resendVerificationSchema>

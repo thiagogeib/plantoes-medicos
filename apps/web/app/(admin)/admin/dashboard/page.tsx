@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   Building2,
   Stethoscope,
@@ -8,14 +9,29 @@ import {
   Users,
   TrendingUp,
   AlertTriangle,
+  Clock,
 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { usePlatformMetrics } from '@/hooks/use-platform-metrics'
+import { useShiftsAtRisk } from '@/hooks/use-shifts-at-risk'
+import { useRecentActivity } from '@/hooks/use-recent-activity'
 import { MetricaCard } from '@/components/shared/admin/MetricaCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+
+const activityTypeLabel: Record<string, string> = {
+  SHIFT: 'Plantão',
+  APPLICATION: 'Candidatura',
+  SWAP: 'Troca',
+  LEAVE: 'Folga',
+}
 
 export default function AdminDashboardPage() {
   const { metrics, loading } = usePlatformMetrics()
+  const { shifts: riskShifts, loading: loadingRisk } = useShiftsAtRisk()
+  const { events, loading: loadingActivity } = useRecentActivity()
 
   return (
     <div className="space-y-6">
@@ -91,21 +107,74 @@ export default function AdminDashboardPage() {
         </Card>
       )}
 
-      {!loading && metrics && metrics.openShifts > 0 && (
+      {!loadingRisk && riskShifts.length > 0 && (
         <Card className="border-amber-200 bg-amber-50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2 text-amber-700">
               <AlertTriangle className="h-5 w-5" />
-              Atenção
+              Plantões em risco — próximas 24h, sem candidatos
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-amber-700">
-              Existem <strong>{metrics.openShifts}</strong> plantões abertos aguardando candidatos.
-            </p>
+          <CardContent className="space-y-2">
+            {riskShifts.map((shift) => (
+              <Link
+                key={shift.id}
+                href={`/admin/plantoes`}
+                className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-white px-3 py-2 text-sm hover:bg-amber-100/50"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900 truncate">{shift.title}</p>
+                  <p className="text-slate-500 text-xs">
+                    {shift.hospital?.name} — {shift.hospital?.city}/{shift.hospital?.state}
+                  </p>
+                </div>
+                <span className="shrink-0 text-amber-700 text-xs font-medium">
+                  {format(parseISO(shift.date), "dd/MM", { locale: ptBR })} · {shift.startTime}
+                </span>
+              </Link>
+            ))}
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-5 w-5 text-indigo-600" />
+            Atividade recente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingActivity ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
+            </div>
+          ) : events.length === 0 ? (
+            <p className="text-sm text-slate-400 py-4 text-center">Nenhuma atividade recente.</p>
+          ) : (
+            <div className="space-y-2">
+              {events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="secondary" className="shrink-0 text-[10px]">
+                      {activityTypeLabel[event.type] ?? event.type}
+                    </Badge>
+                    <span className="text-sm text-slate-700 truncate">{event.summary}</span>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {format(parseISO(event.at), "dd/MM HH:mm", { locale: ptBR })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

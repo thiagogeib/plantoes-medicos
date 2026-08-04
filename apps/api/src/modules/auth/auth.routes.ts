@@ -9,6 +9,8 @@ import {
   registerProfessionalSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
 } from "./auth.dto"
 
 const router = Router()
@@ -36,5 +38,12 @@ router.post(
   AuthController.forgotPassword
 )
 router.post("/reset-password", validate(resetPasswordSchema), AuthController.resetPassword)
+router.post("/verify-email", validate(verifyEmailSchema), AuthController.verifyEmail)
+router.post(
+  "/resend-verification",
+  forgotPasswordLimiter,
+  validate(resendVerificationSchema),
+  AuthController.resendVerification
+)
 
 export { router as authRouter }

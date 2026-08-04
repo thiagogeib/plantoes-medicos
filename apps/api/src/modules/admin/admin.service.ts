@@ -375,4 +375,195 @@ export class AdminService {
 
     return { data, pagination: paginationMeta(total, page, limit) }
   }
+
+  static async listSwaps(filters: { status?: string; page: number; limit: number }) {
+    const { status, page, limit } = filters
+    const { skip, take } = paginate(page, limit)
+
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status
+
+    const [data, total] = await Promise.all([
+      prisma.shiftSwapRequest.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          shift: {
+            include: {
+              specialty: true,
+              hospital: { select: { id: true, name: true, city: true, state: true } },
+            },
+          },
+          requestingProfessional: {
+            select: { id: true, name: true, councilType: true, councilNumber: true },
+          },
+          interests: {
+            include: { professional: { select: { id: true, name: true } } },
+          },
+        },
+      }),
+      prisma.shiftSwapRequest.count({ where }),
+    ])
+
+    return { data, pagination: paginationMeta(total, page, limit) }
+  }
+
+  static async listLeaveRequests(filters: { status?: string; page: number; limit: number }) {
+    const { status, page, limit } = filters
+    const { skip, take } = paginate(page, limit)
+
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status
+
+    const [data, total] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          shift: {
+            include: {
+              specialty: true,
+              hospital: { select: { id: true, name: true, city: true, state: true } },
+            },
+          },
+          professional: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.leaveRequest.count({ where }),
+    ])
+
+    return { data, pagination: paginationMeta(total, page, limit) }
+  }
+
+  static async listStaff(filters: { status?: string; hospitalId?: string; page: number; limit: number }) {
+    const { status, hospitalId, page, limit } = filters
+    const { skip, take } = paginate(page, limit)
+
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status
+    if (hospitalId) where.hospitalId = hospitalId
+
+    const [data, total] = await Promise.all([
+      prisma.hospitalStaff.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          hospital: { select: { id: true, name: true, city: true, state: true } },
+          professional: { select: { id: true, name: true, cpf: true, councilType: true, councilNumber: true } },
+        },
+      }),
+      prisma.hospitalStaff.count({ where }),
+    ])
+
+    return { data, pagination: paginationMeta(total, page, limit) }
+  }
+
+  /** Plantões OPEN nas próximas 24h ainda sem nenhuma candidatura. */
+  static async getRiskShifts() {
+    const now = new Date()
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+
+    return prisma.shift.findMany({
+      where: {
+        status: "OPEN",
+        date: { gte: now, lte: in24h },
+        applications: { none: {} },
+      },
+      orderBy: { date: "asc" },
+      include: {
+        specialty: true,
+        hospital: { select: { id: true, name: true, city: true, state: true } },
+      },
+      take: 50,
+    })
+  }
+
+  /** Feed de atividade recente: une os eventos mais recentes de cada domínio, sem um model dedicado de log. */
+  static async getRecentActivity(limit = 20) {
+    const perSource = Math.min(limit, 30)
+
+    const [shifts, applications, swaps, leaves] = await Promise.all([
+      prisma.shift.findMany({
+        orderBy: { updatedAt: "desc" },
+        take: perSource,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          updatedAt: true,
+          hospital: { select: { name: true } },
+        },
+      }),
+      prisma.application.findMany({
+        orderBy: { updatedAt: "desc" },
+        take: perSource,
+        select: {
+          id: true,
+          status: true,
+          updatedAt: true,
+          shift: { select: { title: true } },
+          professional: { select: { name: true } },
+        },
+      }),
+      prisma.shiftSwapRequest.findMany({
+        orderBy: { updatedAt: "desc" },
+        take: perSource,
+        select: {
+          id: true,
+          status: true,
+          updatedAt: true,
+          shift: { select: { title: true } },
+          requestingProfessional: { select: { name: true } },
+        },
+      }),
+      prisma.leaveRequest.findMany({
+        orderBy: { updatedAt: "desc" },
+        take: perSource,
+        select: {
+          id: true,
+          status: true,
+          updatedAt: true,
+          shift: { select: { title: true } },
+          professional: { select: { name: true } },
+        },
+      }),
+    ])
+
+    const events = [
+      ...shifts.map((s) => ({
+        id: `shift-${s.id}`,
+        type: "SHIFT" as const,
+        summary: `Plantão "${s.title}" (${s.hospital.name}) — ${s.status}`,
+        at: s.updatedAt,
+      })),
+      ...applications.map((a) => ({
+        id: `application-${a.id}`,
+        type: "APPLICATION" as const,
+        summary: `Candidatura de ${a.professional.name} em "${a.shift.title}" — ${a.status}`,
+        at: a.updatedAt,
+      })),
+      ...swaps.map((s) => ({
+        id: `swap-${s.id}`,
+        type: "SWAP" as const,
+        summary: `Troca de ${s.requestingProfessional.name} em "${s.shift.title}" — ${s.status}`,
+        at: s.updatedAt,
+      })),
+      ...leaves.map((l) => ({
+        id: `leave-${l.id}`,
+        type: "LEAVE" as const,
+        summary: `Folga de ${l.professional.name} em "${l.shift.title}" — ${l.status}`,
+        at: l.updatedAt,
+      })),
+    ]
+
+    events.sort((a, b) => b.at.getTime() - a.at.getTime())
+
+    return events.slice(0, limit)
+  }
 }

@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserRole, UserStatus, ShiftStatus } from "@prisma/client"
+import { UserRole, UserStatus, ShiftStatus, SwapRequestStatus, LeaveRequestStatus, StaffStatus } from "@prisma/client"
 
 const passwordSchema = z
   .string()
@@ -91,6 +91,28 @@ export const adminShiftFiltersSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
+export const adminSwapFiltersSchema = z.object({
+  status: z.nativeEnum(SwapRequestStatus).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const adminLeaveFiltersSchema = z.object({
+  status: z.nativeEnum(LeaveRequestStatus).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const adminStaffFiltersSchema = z.object({
+  status: z.nativeEnum(StaffStatus).optional(),
+  hospitalId: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
 export type ListUsersInput = z.infer<typeof listUsersSchema>
 export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>
 export type AdminShiftFilters = z.infer<typeof adminShiftFiltersSchema>
+export type AdminSwapFilters = z.infer<typeof adminSwapFiltersSchema>
+export type AdminLeaveFilters = z.infer<typeof adminLeaveFiltersSchema>
+export type AdminStaffFilters = z.infer<typeof adminStaffFiltersSchema>

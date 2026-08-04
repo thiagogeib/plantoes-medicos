@@ -42,6 +42,25 @@ function emailShell(title: string, bodyHtml: string): string {
   `
 }
 
+export async function sendVerificationEmail(to: string, link: string): Promise<void> {
+  const html = emailShell(
+    "Confirme seu e-mail",
+    `
+      <p style="font-size:14px; color:#475569; line-height:1.6;">
+        Falta pouco para ativar sua conta na PlantoesMed. Clique no botão abaixo para confirmar seu e-mail.
+        Este link expira em 24 horas.
+      </p>
+      <a href="${link}" style="display:inline-block; margin-top:16px; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:600;">
+        Confirmar e-mail
+      </a>
+      <p style="font-size:12px; color:#94a3b8; margin-top:20px;">
+        Se você não criou essa conta, pode ignorar este email com segurança.
+      </p>
+    `
+  )
+  await sendEmail(to, "Confirme seu e-mail — PlantoesMed", html)
+}
+
 export async function sendPasswordResetEmail(to: string, link: string): Promise<void> {
   const html = emailShell(
     "Redefinição de senha",
