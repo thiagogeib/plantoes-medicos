@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
-import { formatCPF, formatPhone } from '@/lib/utils'
+import { formatCPF, formatPhone, formatCEP } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -42,9 +42,13 @@ const schema = z
     councilType: z.enum(['CRM', 'COREN'], { required_error: 'Selecione o conselho' }),
     councilNumber: z.string().min(1, 'Número do conselho obrigatório'),
     councilState: z.string().length(2, 'UF deve ter 2 letras'),
-    city: z.string().optional(),
-    state: z.string().max(2, 'UF deve ter 2 letras').optional(),
-    zipCode: z.string().optional(),
+    street: z.string().min(2, 'Rua obrigatória'),
+    number: z.string().min(1, 'Número obrigatório'),
+    complement: z.string().optional(),
+    neighborhood: z.string().min(2, 'Bairro obrigatório'),
+    city: z.string().min(2, 'Cidade obrigatória'),
+    state: z.string().length(2, 'UF deve ter 2 letras'),
+    zipCode: z.string().min(8, 'CEP inválido'),
     specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -56,7 +60,10 @@ type FormValues = z.infer<typeof schema>
 
 const STEP_FIELDS: Array<Array<keyof FormValues>> = [
   ['email', 'password', 'confirmPassword'],
-  ['name', 'cpf', 'phone', 'councilType', 'councilNumber', 'councilState', 'city', 'state', 'zipCode', 'specialtyIds'],
+  [
+    'name', 'cpf', 'phone', 'councilType', 'councilNumber', 'councilState',
+    'street', 'number', 'neighborhood', 'city', 'state', 'zipCode', 'specialtyIds',
+  ],
 ]
 
 export default function CadastroProfissionalPage() {
@@ -77,6 +84,10 @@ export default function CadastroProfissionalPage() {
       councilType: undefined,
       councilNumber: '',
       councilState: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
       city: '',
       state: '',
       zipCode: '',
@@ -113,13 +124,16 @@ export default function CadastroProfissionalPage() {
     try {
       const { confirmPassword, ...payload } = values
       void confirmPassword
-      await apiClient.post('/auth/register/professional', {
+      const res = await apiClient.post<{ data: { geocoded: boolean } }>('/auth/register/professional', {
         ...payload,
         cpf: payload.cpf.replace(/\D/g, ''),
         phone: payload.phone.replace(/\D/g, ''),
-        zipCode: payload.zipCode ? payload.zipCode : undefined,
+        zipCode: payload.zipCode.replace(/\D/g, ''),
       })
       toast.success('Profissional cadastrado! Confirme seu e-mail para poder entrar.')
+      if (!res.data.geocoded) {
+        toast.warning('Não conseguimos localizar seu CEP — revise seu endereço em Meu Perfil para aparecer corretamente na busca por distância.')
+      }
       router.push('/login')
     } catch (err) {
       const error = err as ApiError
@@ -318,10 +332,64 @@ export default function CadastroProfissionalPage() {
                   <div className="grid grid-cols-3 gap-3">
                     <FormField
                       control={form.control}
+                      name="street"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Rua</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Av. Brasil" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Número</FormLabel>
+                          <FormControl>
+                            <Input placeholder="100" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="complement"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Complemento (opcional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Apto 12" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="neighborhood"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bairro</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Centro" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormField
+                      control={form.control}
                       name="city"
                       render={({ field }) => (
                         <FormItem className="col-span-2">
-                          <FormLabel>Cidade (opcional)</FormLabel>
+                          <FormLabel>Cidade</FormLabel>
                           <FormControl>
                             <Input placeholder="São Paulo" {...field} />
                           </FormControl>
@@ -356,16 +424,15 @@ export default function CadastroProfissionalPage() {
                     name="zipCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>CEP (opcional)</FormLabel>
+                        <FormLabel>CEP</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Só números"
-                            maxLength={8}
+                            placeholder="00000-000"
                             {...field}
-                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                            onChange={(e) => field.onChange(formatCEP(e.target.value))}
                           />
                         </FormControl>
-                        <p className="text-xs text-slate-500">Usado para mostrar plantões próximos de você.</p>
+                        <p className="text-xs text-slate-500">Usado para mostrar a distância real até os hospitais.</p>
                         <FormMessage />
                       </FormItem>
                     )}

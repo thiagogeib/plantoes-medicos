@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Plus, SlidersHorizontal, ChevronDown, LayoutGrid, List as ListIcon } from 'lucide-react'
 import { useHospitalShifts } from '@/hooks/use-hospital-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
+import { PlantaoStatusBadge } from '@/components/shared/plantao/PlantaoStatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { apiClient } from '@/lib/api-client'
 import {
   Select,
@@ -16,6 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -27,6 +37,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { BulkUploadDialog } from '@/components/shared/bulk/BulkUploadDialog'
 import { compensationLabels } from '@/lib/compensation'
+import { formatDateOnly } from '@/lib/date-utils'
 import type { ShiftStatus, Shift, ApiError, Specialty, ApiListResponse, CompensationType } from '@plantoes-medicos/types'
 
 const STATUS_OPTIONS: { value: ShiftStatus | ''; label: string }[] = [
@@ -50,6 +61,7 @@ export default function HospitalPlantoesPage() {
   const [page, setPage] = useState(1)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
   const hasActiveFilters = !!(statusFilter || specialtyId || compensationType || date || diaSemana !== '' || hasCandidates)
 
   useEffect(() => {
@@ -100,6 +112,26 @@ export default function HospitalPlantoesPage() {
           <p className="text-slate-500 text-sm mt-0.5">Gerencie os plantões do seu hospital</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1 border rounded-md p-0.5">
+            <Button
+              size="sm"
+              variant={viewMode === 'card' ? 'default' : 'ghost'}
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('card')}
+              aria-label="Ver em cards"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('list')}
+              aria-label="Ver em lista"
+            >
+              <ListIcon className="h-4 w-4" />
+            </Button>
+          </div>
           <BulkUploadDialog
             triggerLabel="Upload em massa"
             title="Publicar plantões em massa"
@@ -230,37 +262,92 @@ export default function HospitalPlantoesPage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {loading
-          ? Array.from({ length: 6 }).map((_, i) => <PlantaoCard key={i} />)
-          : shifts.map((shift) => (
-              <PlantaoCard
-                key={shift.id}
-                shift={shift}
-                onViewCandidates={() => router.push(`/hospital/plantoes/${shift.id}`)}
-                onEdit={
-                  shift.status === 'OPEN' || shift.status === 'FILLED'
-                    ? () => router.push(`/hospital/plantoes/${shift.id}/editar`)
-                    : undefined
-                }
-                onDelete={
-                  shift.filledSlots === 0
-                    ? () => setConfirmTarget({ shift, action: 'delete' })
-                    : undefined
-                }
-                onCancel={
-                  shift.filledSlots > 0 && shift.status === 'OPEN'
-                    ? () => setConfirmTarget({ shift, action: 'cancel' })
-                    : undefined
-                }
-              />
-            ))}
-        {!loading && shifts.length === 0 && (
-          <div className="col-span-3 text-center py-16 text-slate-400">
-            Nenhum plantão encontrado com esse filtro.
-          </div>
-        )}
-      </div>
+      {viewMode === 'card' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => <PlantaoCard key={i} />)
+            : shifts.map((shift) => (
+                <PlantaoCard
+                  key={shift.id}
+                  shift={shift}
+                  onViewCandidates={() => router.push(`/hospital/plantoes/${shift.id}`)}
+                  onEdit={
+                    shift.status === 'OPEN' || shift.status === 'FILLED'
+                      ? () => router.push(`/hospital/plantoes/${shift.id}/editar`)
+                      : undefined
+                  }
+                  onDelete={
+                    shift.filledSlots === 0
+                      ? () => setConfirmTarget({ shift, action: 'delete' })
+                      : undefined
+                  }
+                  onCancel={
+                    shift.filledSlots > 0 && shift.status === 'OPEN'
+                      ? () => setConfirmTarget({ shift, action: 'cancel' })
+                      : undefined
+                  }
+                />
+              ))}
+          {!loading && shifts.length === 0 && (
+            <div className="col-span-3 text-center py-16 text-slate-400">
+              Nenhum plantão encontrado com esse filtro.
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="border rounded-md overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Título</TableHead>
+                <TableHead>Especialidade</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Horário</TableHead>
+                <TableHead>Vagas</TableHead>
+                <TableHead>Compensação</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : shifts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-slate-400 py-10">
+                    Nenhum plantão encontrado com esse filtro.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                shifts.map((shift) => (
+                  <TableRow key={shift.id}>
+                    <TableCell className="font-medium max-w-[220px] truncate">{shift.title}</TableCell>
+                    <TableCell>
+                      {shift.specialty ? <Badge variant="secondary">{shift.specialty.name}</Badge> : '—'}
+                    </TableCell>
+                    <TableCell>{formatDateOnly(shift.date)}</TableCell>
+                    <TableCell>{shift.startTime}–{shift.endTime}</TableCell>
+                    <TableCell>{shift.filledSlots}/{shift.slots}</TableCell>
+                    <TableCell>{compensationLabels[shift.compensationType]}</TableCell>
+                    <TableCell><PlantaoStatusBadge status={shift.status} /></TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => router.push(`/hospital/plantoes/${shift.id}`)}>
+                        Ver candidatos
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">

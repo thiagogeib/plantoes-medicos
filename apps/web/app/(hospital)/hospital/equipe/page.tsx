@@ -53,8 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { UserPlus, FileWarning, Download, MoreHorizontal, Wallet, Repeat, UserMinus } from 'lucide-react'
 import { BulkUploadDialog } from '@/components/shared/bulk/BulkUploadDialog'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import type {
   HospitalStaff,
   StaffStatus,
@@ -544,7 +543,6 @@ export default function EquipePage() {
               <TableHead>Status</TableHead>
               <TableHead>Vínculo</TableHead>
               <TableHead>Banco de horas</TableHead>
-              <TableHead>Folgas</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -552,14 +550,14 @@ export default function EquipePage() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((__, j) => (
+                  {Array.from({ length: 6 }).map((__, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : staff.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-slate-400">
+                <TableCell colSpan={6} className="text-center py-10 text-slate-400">
                   Nenhum profissional no quadro ainda. Convide pelo CPF.
                 </TableCell>
               </TableRow>
@@ -579,7 +577,6 @@ export default function EquipePage() {
                   <TableCell className="text-slate-600 text-sm">
                     {Math.round((s.hourBankMinutes / 60) * 100) / 100}h
                   </TableCell>
-                  <TableCell className="text-slate-600 text-sm">{s.availableDaysOff}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -636,7 +633,7 @@ export default function EquipePage() {
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <span className="font-medium text-slate-800">{a.professional?.name}</span>
                       <span className="text-slate-500">
-                        {absenceTypeLabel[a.type] ?? a.type} — {format(new Date(a.startDate), 'dd/MM/yyyy', { locale: ptBR })} a {format(new Date(a.endDate), 'dd/MM/yyyy', { locale: ptBR })}
+                        {absenceTypeLabel[a.type] ?? a.type} — {formatDateOnly(a.startDate)} a {formatDateOnly(a.endDate)}
                       </span>
                     </div>
                     {a.note && <p className="text-slate-500 mt-1">{a.note}</p>}

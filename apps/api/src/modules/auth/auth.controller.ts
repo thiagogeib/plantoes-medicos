@@ -36,6 +36,7 @@ export class AuthController {
       res.status(201).json({
         data: {
           user: result.user,
+          geocoded: result.geocoded,
           message: "Cadastro criado. Enviamos um link de confirmação para o seu e-mail.",
         },
       })
@@ -56,6 +57,7 @@ export class AuthController {
       res.status(201).json({
         data: {
           user: result.user,
+          geocoded: result.geocoded,
           message: "Cadastro criado. Enviamos um link de confirmação para o seu e-mail.",
         },
       })

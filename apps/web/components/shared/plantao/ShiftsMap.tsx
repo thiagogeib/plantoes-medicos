@@ -4,8 +4,7 @@ import { useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import Link from 'next/link'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import type { Shift } from '@plantoes-medicos/types'
 import { compensationLabels } from '@/lib/compensation'
 
@@ -75,7 +74,7 @@ export function ShiftsMap({ shifts, height = 440 }: ShiftsMapProps) {
                   {shift.hospital.name} — {shift.hospital.city}/{shift.hospital.state}
                 </p>
                 <p className="text-slate-700">
-                  {format(new Date(shift.date), "dd/MM/yyyy", { locale: ptBR })} · {shift.startTime}–{shift.endTime}
+                  {formatDateOnly(shift.date)} · {shift.startTime}–{shift.endTime}
                 </p>
                 <p className="text-slate-700">{compensationLabels[shift.compensationType]}</p>
                 <Link href={`/profissional/plantoes/${shift.id}`} className="text-primary font-medium hover:underline">

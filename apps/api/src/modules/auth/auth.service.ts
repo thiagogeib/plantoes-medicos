@@ -39,6 +39,7 @@ interface RegistrationResult {
     email: string
     role: UserRole
   }
+  geocoded: boolean
 }
 
 function issueAccessToken(userId: string, role: UserRole): string {
@@ -159,7 +160,7 @@ export class AuthService {
 
       await issueVerificationEmail(user.id, user.email)
 
-      return { user }
+      return { user, geocoded: !!geo }
     } catch (err) {
       handlePrismaConflict(err)
     }
@@ -183,6 +184,10 @@ export class AuthService {
               councilType: data.councilType,
               councilNumber: data.councilNumber,
               councilState: data.councilState,
+              street: data.street,
+              number: data.number,
+              complement: data.complement,
+              neighborhood: data.neighborhood,
               city: data.city,
               state: data.state,
               zipCode: data.zipCode,
@@ -195,19 +200,17 @@ export class AuthService {
         select: { id: true, email: true, role: true },
       })
 
-      if (data.zipCode) {
-        const geo = await geocodeByZipCode(data.zipCode)
-        if (geo) {
-          await prisma.professionalProfile.update({
-            where: { userId: user.id },
-            data: { latitude: geo.latitude, longitude: geo.longitude },
-          })
-        }
+      const geo = await geocodeByZipCode(data.zipCode)
+      if (geo) {
+        await prisma.professionalProfile.update({
+          where: { userId: user.id },
+          data: { latitude: geo.latitude, longitude: geo.longitude },
+        })
       }
 
       await issueVerificationEmail(user.id, user.email)
 
-      return { user }
+      return { user, geocoded: !!geo }
     } catch (err) {
       handlePrismaConflict(err)
     }
@@ -277,6 +280,10 @@ export class AuthService {
             councilType: true,
             councilNumber: true,
             councilState: true,
+            street: true,
+            number: true,
+            complement: true,
+            neighborhood: true,
             city: true,
             state: true,
             zipCode: true,

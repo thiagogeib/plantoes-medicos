@@ -1,6 +1,5 @@
 import { type FC } from 'react'
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { Calendar, MapPin, Building2, UserCircle, BookOpen } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -154,7 +153,7 @@ export const CandidaturaCard: FC<CandidaturaCardProps> = ({
             )}
             <div className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4 shrink-0" />
-              <span>{format(parseISO(shift.date), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span>{formatDateOnly(shift.date)}</span>
               <span className="text-slate-300">•</span>
               <span>{shift.startTime}–{shift.endTime}</span>
             </div>

@@ -228,9 +228,13 @@ model ProfessionalProfile {
   councilType   CouncilType
   councilNumber String
   councilState  String
-  city          String?
-  state         String?
-  zipCode       String?
+  street        String
+  number        String
+  complement    String?
+  neighborhood  String
+  city          String
+  state         String
+  zipCode       String
   latitude      Float?
   longitude     Float?
   createdAt     DateTime    @default(now())

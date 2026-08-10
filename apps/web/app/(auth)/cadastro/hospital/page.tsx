@@ -83,13 +83,16 @@ export default function CadastroHospitalPage() {
     try {
       const { confirmPassword, ...payload } = values
       void confirmPassword
-      await apiClient.post('/auth/register/hospital', {
+      const res = await apiClient.post<{ data: { geocoded: boolean } }>('/auth/register/hospital', {
         ...payload,
         cnpj: payload.cnpj.replace(/\D/g, ''),
         phone: payload.phone.replace(/\D/g, ''),
         zipCode: payload.zipCode.replace(/\D/g, ''),
       })
       toast.success('Hospital cadastrado! Confirme seu e-mail para poder entrar.')
+      if (!res.data.geocoded) {
+        toast.warning('Não conseguimos localizar seu CEP — revise seu endereço em Meu Perfil para aparecer corretamente no mapa.')
+      }
       router.push('/login')
     } catch (err) {
       const error = err as ApiError

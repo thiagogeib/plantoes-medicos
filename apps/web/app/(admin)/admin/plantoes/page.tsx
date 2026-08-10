@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { apiClient } from '@/lib/api-client'
 import { PlantaoStatusBadge } from '@/components/shared/plantao/PlantaoStatusBadge'
 import { Button } from '@/components/ui/button'
@@ -132,7 +131,7 @@ export default function AdminPlantoesPage() {
                     ) : '—'}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">
-                    {format(parseISO(shift.date), 'dd/MM/yyyy', { locale: ptBR })}
+                    {formatDateOnly(shift.date)}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">
                     {shift.filledSlots}/{shift.slots}

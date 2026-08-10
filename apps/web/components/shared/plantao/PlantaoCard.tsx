@@ -1,6 +1,6 @@
 import { type FC } from 'react'
-import { format, differenceInHours, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { differenceInHours, parseISO } from 'date-fns'
+import { formatDateOnly } from '@/lib/date-utils'
 import { MapPin, Clock, Users, Building2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -154,7 +154,7 @@ export const PlantaoCard: FC<PlantaoCardProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-slate-600 mb-2">
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4 text-slate-400" />
-            <span>{format(shiftDate, 'dd/MM/yyyy', { locale: ptBR })}</span>
+            <span>{formatDateOnly(shift.date)}</span>
             <span className="text-slate-400">•</span>
             <span>{shift.startTime}–{shift.endTime}</span>
           </div>

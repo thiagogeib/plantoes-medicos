@@ -16,8 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MapPin, Clock, Users, Search, Stethoscope } from 'lucide-react'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import type { Shift, ApiListResponse, CompensationType, Turno } from '@plantoes-medicos/types'
 
 interface Specialty { id: string; name: string }
@@ -242,7 +241,7 @@ export default function VagasPublicPage() {
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5 shrink-0" />
                           <span>
-                            {format(new Date(shift.date), "dd/MM/yyyy", { locale: ptBR })}
+                            {formatDateOnly(shift.date)}
                             {' — '}{shift.startTime} às {shift.endTime}
                           </span>
                         </div>

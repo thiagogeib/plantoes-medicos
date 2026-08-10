@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -106,7 +105,7 @@ export default function FolgasHospitalPage() {
                       <div className="flex items-center gap-1.5 text-sm text-slate-500">
                         <Clock className="h-3.5 w-3.5" />
                         <span>
-                          {leave.shift && format(new Date(leave.shift.date), 'dd/MM/yyyy', { locale: ptBR })} — {leave.shift?.startTime}–{leave.shift?.endTime}
+                          {leave.shift && formatDateOnly(leave.shift.date)} — {leave.shift?.startTime}–{leave.shift?.endTime}
                         </span>
                       </div>
                       <div className="text-sm text-slate-500">

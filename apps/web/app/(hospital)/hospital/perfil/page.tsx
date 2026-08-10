@@ -71,8 +71,11 @@ export default function PerfilHospitalPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await apiClient.patch('/hospitals/me', values)
+      const res = await apiClient.patch<{ data: { geocoded?: boolean } }>('/hospitals/me', values)
       toast.success('Perfil atualizado com sucesso')
+      if (res.data.geocoded === false) {
+        toast.warning('Não conseguimos localizar seu CEP — confira se o endereço está correto.')
+      }
     } catch (err) {
       toast.error((err as ApiError)?.error?.message ?? 'Erro ao atualizar perfil')
     }

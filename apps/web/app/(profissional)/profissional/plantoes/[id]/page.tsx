@@ -11,8 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlantaoStatusBadge } from '@/components/shared/plantao/PlantaoStatusBadge'
 import type { Shift, Application, ApiResponse, ApiError } from '@plantoes-medicos/types'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { ArrowLeft, MapPin, Clock, Users, Building2 } from 'lucide-react'
 import {
   Dialog,
@@ -139,7 +138,7 @@ export default function PlantaoDetailProfissionalPage() {
             <div className="flex items-center gap-2 text-slate-600">
               <Clock className="h-4 w-4 shrink-0" />
               <span>
-                {format(new Date(shift.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} — {shift.startTime} às {shift.endTime}
+                {formatDateOnly(shift.date, "dd 'de' MMMM 'de' yyyy")} — {shift.startTime} às {shift.endTime}
               </span>
             </div>
             <div className="flex items-center gap-2 text-slate-600">

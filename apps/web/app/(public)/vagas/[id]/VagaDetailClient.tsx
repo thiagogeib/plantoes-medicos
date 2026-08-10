@@ -10,8 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft, MapPin, Clock, Users, Building2, Stethoscope } from 'lucide-react'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import type { Shift, ApiResponse } from '@plantoes-medicos/types'
 import { compensationLabels } from '@/lib/compensation'
 
@@ -103,7 +102,7 @@ export function VagaDetailClient() {
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 shrink-0 text-slate-400" />
                   <span>
-                    {format(new Date(shift.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    {formatDateOnly(shift.date, "dd 'de' MMMM 'de' yyyy")}
                     {' — '}{shift.startTime} às {shift.endTime}
                   </span>
                 </div>

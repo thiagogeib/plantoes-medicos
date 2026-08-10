@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -146,7 +145,7 @@ export default function AdminTrocasPage() {
                     {swap.requestingProfessional?.name ?? '—'}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">
-                    {swap.shift?.date ? format(parseISO(swap.shift.date), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                    {swap.shift?.date ? formatDateOnly(swap.shift.date) : '—'}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">{swap.interests.length}</TableCell>
                   <TableCell>

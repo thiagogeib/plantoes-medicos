@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { usePlatformMetrics } from '@/hooks/use-platform-metrics'
 import { useShiftsAtRisk } from '@/hooks/use-shifts-at-risk'
 import { useRecentActivity } from '@/hooks/use-recent-activity'
@@ -129,7 +130,7 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
                 <span className="shrink-0 text-amber-700 text-xs font-medium">
-                  {format(parseISO(shift.date), "dd/MM", { locale: ptBR })} · {shift.startTime}
+                  {formatDateOnly(shift.date, "dd/MM")} · {shift.startTime}
                 </span>
               </Link>
             ))}

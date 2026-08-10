@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -52,7 +51,7 @@ function SwapShiftInfo({ swap }: { swap: ShiftSwapRequest }) {
       <div className="font-semibold text-slate-900">{swap.shift.title}</div>
       <div className="flex items-center gap-1.5 text-sm text-slate-500">
         <Clock className="h-3.5 w-3.5" />
-        <span>{format(new Date(swap.shift.date), 'dd/MM/yyyy', { locale: ptBR })} — {swap.shift.startTime}–{swap.shift.endTime}</span>
+        <span>{formatDateOnly(swap.shift.date)} — {swap.shift.startTime}–{swap.shift.endTime}</span>
       </div>
       {swap.shift.hospital && (
         <div className="flex items-center gap-1.5 text-sm text-slate-500">
@@ -165,7 +164,7 @@ export default function TrocasProfissionalPage() {
                   <SelectContent>
                     {acceptedApplications.map((a) => (
                       <SelectItem key={a.shiftId} value={a.shiftId}>
-                        {a.shift?.title} — {a.shift?.date && format(new Date(a.shift.date), 'dd/MM/yyyy', { locale: ptBR })} ({a.shift?.startTime}–{a.shift?.endTime})
+                        {a.shift?.title} — {a.shift?.date && formatDateOnly(a.shift.date)} ({a.shift?.startTime}–{a.shift?.endTime})
                       </SelectItem>
                     ))}
                   </SelectContent>

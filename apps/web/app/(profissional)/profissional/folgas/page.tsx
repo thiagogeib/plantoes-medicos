@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -72,7 +71,7 @@ function LeaveShiftInfo({ leave }: { leave: LeaveRequest }) {
       <div className="font-semibold text-slate-900">{leave.shift.title}</div>
       <div className="flex items-center gap-1.5 text-sm text-slate-500">
         <Clock className="h-3.5 w-3.5" />
-        <span>{format(new Date(leave.shift.date), 'dd/MM/yyyy', { locale: ptBR })} — {leave.shift.startTime}–{leave.shift.endTime}</span>
+        <span>{formatDateOnly(leave.shift.date)} — {leave.shift.startTime}–{leave.shift.endTime}</span>
       </div>
       {leave.shift.hospital && (
         <div className="flex items-center gap-1.5 text-sm text-slate-500">

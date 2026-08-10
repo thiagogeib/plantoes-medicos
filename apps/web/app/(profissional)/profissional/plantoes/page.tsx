@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useShifts } from '@/hooks/use-shifts'
 import { PlantaoCard } from '@/components/shared/plantao/PlantaoCard'
 import { Skeleton } from '@/components/ui/skeleton'
+import { formatDateOnly } from '@/lib/date-utils'
 
 const ShiftsMap = dynamic(
   () => import('@/components/shared/plantao/ShiftsMap').then((m) => m.ShiftsMap),
@@ -35,16 +36,9 @@ import {
 } from '@/components/ui/select'
 import { apiClient } from '@/lib/api-client'
 import { compensationLabels } from '@/lib/compensation'
-import type { Specialty, ApiListResponse, CompensationType, Turno, ShiftSwapRequest, HospitalStaff } from '@plantoes-medicos/types'
+import type { Specialty, ApiListResponse, CompensationType, ShiftSwapRequest, HospitalStaff } from '@plantoes-medicos/types'
 
-const turnoLabel: Record<Turno, string> = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }
 const diaSemanaLabel = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
-
-function turnoOf(startTime: string): Turno {
-  if (startTime < '12:00') return 'MANHA'
-  if (startTime < '18:00') return 'TARDE'
-  return 'NOITE'
-}
 
 export default function ProfissionalPlantoesPage() {
   const router = useRouter()
@@ -52,7 +46,6 @@ export default function ProfissionalPlantoesPage() {
   const [hospitalId, setHospitalId] = useState('')
   const [city, setCity] = useState('')
   const [cityInput, setCityInput] = useState('')
-  const [turno, setTurno] = useState<Turno | ''>('')
   const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
   const [raioKm, setRaioKm] = useState('')
   const [date, setDate] = useState('')
@@ -71,7 +64,6 @@ export default function ProfissionalPlantoesPage() {
     specialtyId,
     hospitalId,
     city,
-    turno: turno || undefined,
     compensationType: compensationType || undefined,
     raioKm: raioKm ? Number(raioKm) : undefined,
     date: date || undefined,
@@ -112,12 +104,11 @@ export default function ProfissionalPlantoesPage() {
       if (!swap.shift) return false
       if (specialtyId && swap.shift.specialtyId !== specialtyId) return false
       if (hospitalId && swap.shift.hospitalId !== hospitalId) return false
-      if (turno && turnoOf(swap.shift.startTime) !== turno) return false
       if (compensationType && swap.shift.compensationType !== compensationType) return false
       if (city && !swap.shift.hospital?.city?.toLowerCase().includes(city.toLowerCase())) return false
       return true
     })
-  }, [swaps, specialtyId, hospitalId, turno, compensationType, city])
+  }, [swaps, specialtyId, hospitalId, compensationType, city])
 
   const handleSearch = () => {
     setCity(cityInput)
@@ -167,7 +158,7 @@ export default function ProfissionalPlantoesPage() {
 
   const showSwaps = page === 1 && filteredSwaps.length > 0
   const noResults = !loading && shifts.length === 0 && !showSwaps
-  const hasActiveFilters = !!(specialtyId || hospitalId || turno || compensationType || city || raioKm || date || diaSemana !== '')
+  const hasActiveFilters = !!(specialtyId || hospitalId || compensationType || city || raioKm || date || diaSemana !== '')
 
   return (
     <div className="space-y-6">
@@ -262,26 +253,6 @@ export default function ProfissionalPlantoesPage() {
             </SelectContent>
           </Select>
         )}
-
-        <Select
-          value={turno}
-          onValueChange={(val) => {
-            setTurno(val === '__all__' ? '' : (val as Turno))
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Turno" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Qualquer turno</SelectItem>
-            {(Object.keys(turnoLabel) as Turno[]).map((t) => (
-              <SelectItem key={t} value={t}>
-                {turnoLabel[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
         <Select
           value={compensationType}
@@ -460,7 +431,7 @@ export default function ProfissionalPlantoesPage() {
                   <TableCell>{shift.hospital?.name}</TableCell>
                   <TableCell>{shift.specialty?.name}</TableCell>
                   <TableCell>{shift.requiredCouncilType === 'CRM' ? 'Médico' : 'Enfermeiro'}</TableCell>
-                  <TableCell>{new Date(shift.date).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{formatDateOnly(shift.date)}</TableCell>
                   <TableCell>{shift.startTime}–{shift.endTime}</TableCell>
                   <TableCell>{shift.filledSlots}/{shift.slots}</TableCell>
                   <TableCell>{compensationLabels[shift.compensationType]}</TableCell>

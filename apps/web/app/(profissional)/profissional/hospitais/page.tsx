@@ -36,8 +36,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Building2, MapPin, FileWarning } from 'lucide-react'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import type { HospitalStaff, StaffStatus, StaffType, ApiError, Absence } from '@plantoes-medicos/types'
 
 const absenceTypeLabel: Record<string, string> = {
@@ -303,7 +302,7 @@ export default function MeusHospitaisPage() {
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <span className="font-medium text-slate-800">{absenceTypeLabel[a.type] ?? a.type}</span>
                       <span className="text-slate-500">
-                        {format(new Date(a.startDate), 'dd/MM/yyyy', { locale: ptBR })} a {format(new Date(a.endDate), 'dd/MM/yyyy', { locale: ptBR })}
+                        {formatDateOnly(a.startDate)} a {formatDateOnly(a.endDate)}
                       </span>
                     </div>
                     <div className="text-slate-400 mt-0.5">{a.hospital?.name}</div>

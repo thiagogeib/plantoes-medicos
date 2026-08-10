@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -148,7 +147,7 @@ export default function AdminFolgasPage() {
                     {leave.professional?.name ?? '—'}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">
-                    {format(parseISO(leave.date), 'dd/MM/yyyy', { locale: ptBR })}
+                    {formatDateOnly(leave.date)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[leave.status]}>{statusLabel[leave.status]}</Badge>

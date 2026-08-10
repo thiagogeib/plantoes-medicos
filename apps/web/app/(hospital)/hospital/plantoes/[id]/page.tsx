@@ -13,8 +13,7 @@ import { CandidaturaCard } from '@/components/shared/candidatura/CandidaturaCard
 import { Badge } from '@/components/ui/badge'
 import { compensationLabels } from '@/lib/compensation'
 import type { Shift, Application, ApiResponse, ApiListResponse, ApiError } from '@plantoes-medicos/types'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatDateOnly } from '@/lib/date-utils'
 import { ArrowLeft, MapPin, Clock, Users, Trash2, Pencil } from 'lucide-react'
 import {
   Dialog,
@@ -232,7 +231,7 @@ export default function PlantaoDetailPage() {
             <div className="flex items-center gap-2 text-slate-600">
               <Clock className="h-4 w-4" />
               <span>
-                {format(new Date(shift.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} — {shift.startTime} às {shift.endTime}
+                {formatDateOnly(shift.date, "dd 'de' MMMM 'de' yyyy")} — {shift.startTime} às {shift.endTime}
               </span>
             </div>
             <div className="flex items-center gap-2 text-slate-600">

@@ -52,9 +52,13 @@ export interface ProfessionalProfile {
   councilType: 'CRM' | 'COREN'
   councilNumber: string
   councilState: string
-  city?: string
-  state?: string
-  zipCode?: string
+  street: string
+  number: string
+  complement?: string
+  neighborhood: string
+  city: string
+  state: string
+  zipCode: string
   latitude?: number | null
   longitude?: number | null
   specialties: Specialty[]

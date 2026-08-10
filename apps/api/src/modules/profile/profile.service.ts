@@ -31,8 +31,10 @@ export class ProfileService {
         },
       })
 
+      let geocoded: boolean | undefined
       if (input.zipCode) {
         const geo = await geocodeByZipCode(input.zipCode)
+        geocoded = !!geo
         if (geo) {
           await prisma.hospitalProfile.update({
             where: { userId },
@@ -45,7 +47,7 @@ export class ProfileService {
         }
       }
 
-      return result
+      return { ...result, geocoded }
     } catch (err) {
       handlePrismaConflict(err)
     }
@@ -77,8 +79,10 @@ export class ProfileService {
         },
       })
 
+      let geocoded: boolean | undefined
       if (input.zipCode) {
         const geo = await geocodeByZipCode(input.zipCode)
+        geocoded = !!geo
         if (geo) {
           await prisma.professionalProfile.update({
             where: { userId },
@@ -91,7 +95,7 @@ export class ProfileService {
         }
       }
 
-      return result
+      return { ...result, geocoded }
     } catch (err) {
       handlePrismaConflict(err)
     }

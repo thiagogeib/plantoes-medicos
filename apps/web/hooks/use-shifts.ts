@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
-import type { Shift, ApiListResponse, CompensationType, Turno } from '@plantoes-medicos/types'
+import type { Shift, ApiListResponse, CompensationType } from '@plantoes-medicos/types'
 
 interface UseShiftsOptions {
   specialtyId?: string
   hospitalId?: string
   city?: string
   compensationType?: CompensationType
-  turno?: Turno
   raioKm?: number
   date?: string
   diaSemana?: number
@@ -23,7 +22,6 @@ export function useShifts({
   hospitalId,
   city,
   compensationType,
-  turno,
   raioKm,
   date,
   diaSemana,
@@ -46,7 +44,6 @@ export function useShifts({
       if (hospitalId) params.set('hospitalId', hospitalId)
       if (city) params.set('city', city)
       if (compensationType) params.set('compensationType', compensationType)
-      if (turno) params.set('turno', turno)
       if (raioKm) params.set('raioKm', String(raioKm))
       if (date) {
         params.set('dateFrom', date)
@@ -62,7 +59,7 @@ export function useShifts({
     } finally {
       setLoading(false)
     }
-  }, [specialtyId, hospitalId, city, compensationType, turno, raioKm, date, diaSemana, page, limit])
+  }, [specialtyId, hospitalId, city, compensationType, raioKm, date, diaSemana, page, limit])
 
   useEffect(() => {
     void load()

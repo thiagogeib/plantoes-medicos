@@ -33,9 +33,13 @@ export const adminCreateProfessionalSchema = z.object({
   }),
   councilNumber: z.string().min(1, "Número do conselho obrigatório"),
   councilState: z.string().length(2, "Estado do conselho deve ter 2 letras"),
-  city: z.string().min(1).optional(),
-  state: z.string().length(2, "Estado deve ter 2 letras").optional(),
-  zipCode: z.string().regex(/^\d{8}$/, "CEP deve ter 8 dígitos").optional(),
+  street: z.string().min(1, "Rua obrigatória"),
+  number: z.string().min(1, "Número obrigatório"),
+  complement: z.string().optional(),
+  neighborhood: z.string().min(1, "Bairro obrigatório"),
+  city: z.string().min(1, "Cidade obrigatória"),
+  state: z.string().length(2, "Estado deve ter 2 letras"),
+  zipCode: z.string().regex(/^\d{8}$/, "CEP deve ter 8 dígitos"),
   specialtyIds: z.array(z.string()).min(1, "Pelo menos uma especialidade deve ser informada"),
 })
 

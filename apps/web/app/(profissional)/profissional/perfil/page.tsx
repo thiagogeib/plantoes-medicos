@@ -38,9 +38,13 @@ const schema = z.object({
   councilType: z.enum(['CRM', 'COREN']),
   councilNumber: z.string().min(1, 'Obrigatório'),
   councilState: z.string().length(2, 'UF: 2 letras'),
-  city: z.string().optional(),
-  state: z.string().max(2, 'UF: 2 letras').optional(),
-  zipCode: z.string().regex(/^\d{8}$/, 'CEP: 8 dígitos sem traço').optional().or(z.literal('')),
+  street: z.string().min(1, 'Obrigatório'),
+  number: z.string().min(1, 'Obrigatório'),
+  complement: z.string().optional(),
+  neighborhood: z.string().min(1, 'Obrigatório'),
+  city: z.string().min(1, 'Obrigatório'),
+  state: z.string().length(2, 'UF: 2 letras'),
+  zipCode: z.string().regex(/^\d{8}$/, 'CEP: 8 dígitos sem traço'),
   specialtyIds: z.array(z.string()).min(1, 'Selecione ao menos uma especialidade'),
 })
 type FormValues = z.infer<typeof schema>
@@ -59,7 +63,8 @@ interface MeResponse {
       professionalProfile: {
         name: string; cpf: string; phone: string
         councilType: 'CRM' | 'COREN'; councilNumber: string; councilState: string
-        city?: string; state?: string; zipCode?: string
+        street: string; number: string; complement?: string; neighborhood: string
+        city: string; state: string; zipCode: string
         specialties: { specialty: { id: string; name: string } }[]
       } | null
     }
@@ -85,7 +90,8 @@ export default function PerfilProfissionalPage() {
           email: user.email,
           name: p.name, cpf: p.cpf, phone: p.phone,
           councilType: p.councilType, councilNumber: p.councilNumber, councilState: p.councilState,
-          city: p.city ?? '', state: p.state ?? '', zipCode: p.zipCode ?? '',
+          street: p.street, number: p.number, complement: p.complement ?? '', neighborhood: p.neighborhood,
+          city: p.city, state: p.state, zipCode: p.zipCode,
           specialtyIds: p.specialties.map((s) => s.specialty.id),
         })
       })
@@ -95,11 +101,11 @@ export default function PerfilProfissionalPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await apiClient.patch('/professionals/me', {
-        ...values,
-        zipCode: values.zipCode ? values.zipCode : undefined,
-      })
+      const res = await apiClient.patch<{ data: { geocoded?: boolean } }>('/professionals/me', values)
       toast.success('Perfil atualizado com sucesso')
+      if (res.data.geocoded === false) {
+        toast.warning('Não conseguimos localizar seu CEP — confira se o endereço está correto.')
+      }
     } catch (err) {
       toast.error((err as ApiError)?.error?.message ?? 'Erro ao atualizar perfil')
     }
@@ -188,8 +194,24 @@ export default function PerfilProfissionalPage() {
                     <FormItem className="sm:col-span-2"><FormLabel>Estado do conselho (UF)</FormLabel>
                       <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
+                  <FormField control={form.control} name="street" render={({ field }) => (
+                    <FormItem><FormLabel>Rua</FormLabel>
+                      <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="number" render={({ field }) => (
+                    <FormItem><FormLabel>Número</FormLabel>
+                      <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="complement" render={({ field }) => (
+                    <FormItem><FormLabel>Complemento (opcional)</FormLabel>
+                      <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="neighborhood" render={({ field }) => (
+                    <FormItem><FormLabel>Bairro</FormLabel>
+                      <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
                   <FormField control={form.control} name="city" render={({ field }) => (
-                    <FormItem><FormLabel>Cidade (opcional)</FormLabel>
+                    <FormItem><FormLabel>Cidade</FormLabel>
                       <FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="state" render={({ field }) => (
@@ -197,9 +219,16 @@ export default function PerfilProfissionalPage() {
                       <FormControl><Input maxLength={2} className="w-24" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="zipCode" render={({ field }) => (
-                    <FormItem><FormLabel>CEP (opcional)</FormLabel>
-                      <FormControl><Input maxLength={8} placeholder="Só números" {...field} /></FormControl>
-                      <p className="text-xs text-slate-500">Usado para mostrar plantões próximos de você.</p>
+                    <FormItem><FormLabel>CEP</FormLabel>
+                      <FormControl>
+                        <Input
+                          maxLength={8}
+                          placeholder="Só números"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-slate-500">Usado para mostrar a distância real até os hospitais.</p>
                       <FormMessage /></FormItem>
                   )} />
                 </div>
