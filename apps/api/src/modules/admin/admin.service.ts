@@ -80,12 +80,11 @@ export class AdminService {
     if (role) where.role = role
     if (status) where.status = status
 
-    const [data, total] = await Promise.all([
+    // O "nome" vive em hospitalProfile ou professionalProfile dependendo do perfil,
+    // então não dá pra ordenar direto no Prisma — busca tudo e ordena em memória.
+    const [all, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           email: true,
@@ -103,6 +102,14 @@ export class AdminService {
       }),
       prisma.user.count({ where }),
     ])
+
+    const sorted = all.sort((a, b) => {
+      const nameA = a.hospitalProfile?.name ?? a.professionalProfile?.name ?? a.email
+      const nameB = b.hospitalProfile?.name ?? b.professionalProfile?.name ?? b.email
+      return nameA.localeCompare(nameB, "pt-BR")
+    })
+
+    const data = sorted.slice(skip, skip + take)
 
     return { data, pagination: paginationMeta(total, page, limit) }
   }
@@ -456,7 +463,7 @@ export class AdminService {
         where,
         skip,
         take,
-        orderBy: { createdAt: "desc" },
+        orderBy: { professional: { name: "asc" } },
         include: {
           hospital: { select: { id: true, name: true, city: true, state: true } },
           professional: { select: { id: true, name: true, cpf: true, councilType: true, councilNumber: true } },

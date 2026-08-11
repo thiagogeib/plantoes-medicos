@@ -70,11 +70,22 @@ export class ShiftService {
 
       // um profissional só pode ver plantões compatíveis com o próprio conselho (CRM/COREN)
       if (professional) where.requiredCouncilType = professional.councilType
+
+      // e apenas plantões nas especialidades em que ele está cadastrado
+      const specialtyLinks = professional
+        ? await prisma.professionalSpecialty.findMany({
+            where: { professionalId: professional.id },
+            select: { specialtyId: true },
+          })
+        : []
+      const allowedSpecialtyIds = specialtyLinks.map((s) => s.specialtyId)
+      where.specialtyId =
+        specialtyId && allowedSpecialtyIds.includes(specialtyId) ? specialtyId : { in: allowedSpecialtyIds }
     } else if (status) {
       where.status = status
     }
 
-    if (specialtyId) where.specialtyId = specialtyId
+    if (role !== "PROFESSIONAL" && specialtyId) where.specialtyId = specialtyId
     if (role !== "PROFESSIONAL" && hospitalId) where.hospitalId = hospitalId
     if (compensationType) where.compensationType = compensationType
     if (requiredCouncilType) where.requiredCouncilType = requiredCouncilType
@@ -407,7 +418,7 @@ export class ShiftService {
     if (diaSemana !== undefined) {
       const candidates = await prisma.shift.findMany({
         where,
-        orderBy: { date: "desc" },
+        orderBy: { date: "asc" },
         include: includeClause,
         take: 500,
       })
@@ -422,7 +433,7 @@ export class ShiftService {
         where,
         skip,
         take,
-        orderBy: { date: "desc" },
+        orderBy: { date: "asc" },
         include: includeClause,
       }),
       prisma.shift.count({ where }),

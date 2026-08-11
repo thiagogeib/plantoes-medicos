@@ -253,10 +253,6 @@ export default function MeusHospitaisPage() {
                         <span className="text-slate-400">Banco de horas: </span>
                         <span className="font-medium">{Math.round((link.hourBankMinutes / 60) * 100) / 100}h</span>
                       </div>
-                      <div>
-                        <span className="text-slate-400">Folgas disponíveis: </span>
-                        <span className="font-medium">{link.availableDaysOff}</span>
-                      </div>
                     </div>
                     <Button size="sm" variant="outline" className="mt-3" onClick={() => setAbsenceTarget(link)}>
                       <FileWarning className="mr-2 h-4 w-4" /> Registrar afastamento

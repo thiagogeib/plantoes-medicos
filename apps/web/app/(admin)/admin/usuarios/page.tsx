@@ -471,6 +471,7 @@ export default function AdminUsuariosPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Perfil</TableHead>
               <TableHead>Status</TableHead>
@@ -482,7 +483,7 @@ export default function AdminUsuariosPage() {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 5 }).map((__, j) => (
+                  {Array.from({ length: 6 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -491,14 +492,17 @@ export default function AdminUsuariosPage() {
               ))
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-slate-400">
+                <TableCell colSpan={6} className="text-center py-10 text-slate-400">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium text-slate-900">{user.email}</TableCell>
+                  <TableCell className="font-medium text-slate-900">
+                    {user.hospitalProfile?.name ?? user.professionalProfile?.name ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-slate-600">{user.email}</TableCell>
                   <TableCell>
                     <Badge variant={roleBadgeVariant[user.role]}>{roleLabel[user.role]}</Badge>
                   </TableCell>

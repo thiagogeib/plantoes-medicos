@@ -442,6 +442,12 @@ function RegisterAbsenceDialog({ staff, onClose, onSaved }: {
   )
 }
 
+const COUNCIL_OPTIONS: { value: string; label: string }[] = [
+  { value: '__all__', label: 'Todos os conselhos' },
+  { value: 'CRM', label: 'CRM' },
+  { value: 'COREN', label: 'COREN' },
+]
+
 export default function EquipePage() {
   const [staff, setStaff] = useState<HospitalStaff[]>([])
   const [loading, setLoading] = useState(true)
@@ -451,6 +457,8 @@ export default function EquipePage() {
   const [deactivateTarget, setDeactivateTarget] = useState<HospitalStaff | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [absences, setAbsences] = useState<Absence[]>([])
+  const [search, setSearch] = useState('')
+  const [councilType, setCouncilType] = useState('')
 
   async function handleExportHours() {
     try {
@@ -463,8 +471,11 @@ export default function EquipePage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      const params = new URLSearchParams({ limit: '100' })
+      if (search) params.set('search', search)
+      if (councilType) params.set('councilType', councilType)
       const [staffRes, absencesRes] = await Promise.all([
-        apiClient.get<ApiListResponse<HospitalStaff>>('/staff/hospital?limit=100'),
+        apiClient.get<ApiListResponse<HospitalStaff>>(`/staff/hospital?${params.toString()}`),
         apiClient.get<{ data: Absence[] }>('/absences/hospital').catch(() => ({ data: [] })),
       ])
       setStaff(staffRes.data)
@@ -474,7 +485,7 @@ export default function EquipePage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [search, councilType])
 
   useEffect(() => {
     void load()
@@ -532,6 +543,28 @@ export default function EquipePage() {
             <UserPlus className="mr-2 h-4 w-4" /> Convidar profissional
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Buscar por profissional"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full sm:w-64"
+        />
+        <Select
+          value={councilType || '__all__'}
+          onValueChange={(val) => setCouncilType(val === '__all__' ? '' : val)}
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Conselho" />
+          </SelectTrigger>
+          <SelectContent>
+            {COUNCIL_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

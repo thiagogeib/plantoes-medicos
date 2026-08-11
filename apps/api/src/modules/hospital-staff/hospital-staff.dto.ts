@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { StaffStatus, StaffType } from "@prisma/client"
+import { StaffStatus, StaffType, CouncilType } from "@prisma/client"
 
 export const inviteStaffSchema = z.object({
   cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
@@ -25,6 +25,8 @@ export const adjustBalanceSchema = z
 
 export const staffFiltersSchema = z.object({
   status: z.nativeEnum(StaffStatus).optional(),
+  search: z.string().optional(),
+  councilType: z.nativeEnum(CouncilType).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })

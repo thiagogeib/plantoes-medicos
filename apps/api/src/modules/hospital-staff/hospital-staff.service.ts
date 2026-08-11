@@ -71,18 +71,20 @@ export class HospitalStaffService {
   }
 
   static async listHospitalStaff(hospitalId: string, filters: StaffFilters) {
-    const { status, page, limit } = filters
+    const { status, search, councilType, page, limit } = filters
     const { skip, take } = paginate(page, limit)
 
     const where: Record<string, unknown> = { hospitalId }
     if (status) where.status = status
+    if (search) where.professional = { name: { contains: search, mode: "insensitive" } }
+    if (councilType) where.professional = { ...(where.professional as object), councilType }
 
     const [data, total] = await Promise.all([
       prisma.hospitalStaff.findMany({
         where,
         skip,
         take,
-        orderBy: { createdAt: "desc" },
+        orderBy: { professional: { name: "asc" } },
         include: { professional: { select: professionalSelect } },
       }),
       prisma.hospitalStaff.count({ where }),

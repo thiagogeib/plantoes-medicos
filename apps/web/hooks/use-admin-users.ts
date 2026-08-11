@@ -5,6 +5,11 @@ import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
 import type { User, UserRole, UserStatus, ApiListResponse } from '@plantoes-medicos/types'
 
+export interface AdminUserListItem extends User {
+  hospitalProfile?: { name: string } | null
+  professionalProfile?: { name: string } | null
+}
+
 interface UseAdminUsersOptions {
   role?: UserRole | ''
   status?: UserStatus | ''
@@ -18,7 +23,7 @@ export function useAdminUsers({
   page = 1,
   limit = 10,
 }: UseAdminUsersOptions = {}) {
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<AdminUserListItem[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
 
@@ -29,7 +34,7 @@ export function useAdminUsers({
       if (role) params.set('role', role)
       if (status) params.set('status', status)
 
-      const res = await apiClient.get<ApiListResponse<User>>(`/admin/users?${params.toString()}`)
+      const res = await apiClient.get<ApiListResponse<AdminUserListItem>>(`/admin/users?${params.toString()}`)
       setUsers(res.data)
       setTotalPages(res.pagination.totalPages)
     } catch {

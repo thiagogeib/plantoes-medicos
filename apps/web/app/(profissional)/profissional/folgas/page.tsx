@@ -57,9 +57,11 @@ function computeDurationMinutes(startTime: string, endTime: string): number {
 
 interface MeResponse {
   data: {
-    professionalProfile: {
-      specialties: { specialty: { id: string; name: string } }[]
-    } | null
+    user: {
+      professionalProfile: {
+        specialties: { specialty: { id: string; name: string } }[]
+      } | null
+    }
   }
 }
 
@@ -115,7 +117,7 @@ export default function FolgasProfissionalPage() {
       ])
       setMine(mineRes.data)
       setStaffLinks(staffRes.data.filter((s) => s.status === 'ACTIVE' && s.type === 'FIXO'))
-      setSpecialties((meRes.data.professionalProfile?.specialties ?? []).map((s) => s.specialty))
+      setSpecialties((meRes.data.user.professionalProfile?.specialties ?? []).map((s) => s.specialty))
     } catch {
       toast.error('Erro ao carregar folgas')
     } finally {
