@@ -35,6 +35,7 @@ const STATUS_OPTIONS: { value: ShiftStatus | ''; label: string }[] = [
 
 export default function AdminPlantoesPage() {
   const [statusFilter, setStatusFilter] = useState<ShiftStatus | ''>('')
+  const [councilFilter, setCouncilFilter] = useState<'CRM' | 'COREN' | ''>('')
   const [page, setPage] = useState(1)
   const [shifts, setShifts] = useState<Shift[]>([])
   const [totalPages, setTotalPages] = useState(1)
@@ -45,6 +46,7 @@ export default function AdminPlantoesPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: '15' })
       if (statusFilter) params.set('status', statusFilter)
+      if (councilFilter) params.set('requiredCouncilType', councilFilter)
       const res = await apiClient.get<ApiListResponse<Shift>>(`/shifts?${params.toString()}`)
       setShifts(res.data)
       setTotalPages(res.pagination.totalPages)
@@ -53,7 +55,7 @@ export default function AdminPlantoesPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, page])
+  }, [statusFilter, councilFilter, page])
 
   useEffect(() => {
     void load()
@@ -66,7 +68,7 @@ export default function AdminPlantoesPage() {
         <p className="text-slate-500 text-sm mt-0.5">Todos os plantões da plataforma</p>
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-3">
         <Select
           value={statusFilter}
           onValueChange={(val) => {
@@ -83,6 +85,23 @@ export default function AdminPlantoesPage() {
                 {opt.label}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={councilFilter || '__all__'}
+          onValueChange={(val) => {
+            setCouncilFilter(val === '__all__' ? '' : (val as 'CRM' | 'COREN'))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Conselho" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os conselhos</SelectItem>
+            <SelectItem value="CRM">CRM</SelectItem>
+            <SelectItem value="COREN">COREN</SelectItem>
           </SelectContent>
         </Select>
       </div>

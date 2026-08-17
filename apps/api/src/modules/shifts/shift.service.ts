@@ -159,12 +159,17 @@ export class ShiftService {
       return { data: page_data, pagination: paginationMeta(total, page, limit) }
     }
 
+    // visão do admin prioriza achar um plantão pelo nome — as demais (busca do
+    // profissional, painel público) priorizam a data mais próxima
+    const orderBy =
+      role === "ADMIN" ? [{ title: "asc" as const }, { date: "asc" as const }] : { date: "asc" as const }
+
     const [data, total] = await Promise.all([
       prisma.shift.findMany({
         where,
         skip,
         take,
-        orderBy: { date: "asc" },
+        orderBy,
         include: includeClause,
       }),
       prisma.shift.count({ where }),
@@ -391,14 +396,25 @@ export class ShiftService {
   }
 
   static async listHospitalShifts(hospitalId: string, filters: ShiftFilters) {
-    const { status, specialtyId, compensationType, dateFrom, dateTo, diaSemana, hasCandidates, page, limit } =
-      filters
+    const {
+      status,
+      specialtyId,
+      compensationType,
+      requiredCouncilType,
+      dateFrom,
+      dateTo,
+      diaSemana,
+      hasCandidates,
+      page,
+      limit,
+    } = filters
     const { skip, take } = paginate(page, limit)
 
     const where: Record<string, unknown> = { hospitalId }
     if (status) where.status = status
     if (specialtyId) where.specialtyId = specialtyId
     if (compensationType) where.compensationType = compensationType
+    if (requiredCouncilType) where.requiredCouncilType = requiredCouncilType
     if (dateFrom || dateTo) {
       where.date = {
         ...(dateFrom ? { gte: new Date(dateFrom) } : {}),

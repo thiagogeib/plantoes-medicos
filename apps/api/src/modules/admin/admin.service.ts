@@ -10,6 +10,7 @@ import {
   AdminCreateProfessionalInput,
   AdminUpdateHospitalInput,
   AdminUpdateProfessionalInput,
+  AdminStaffFilters,
 } from "./admin.dto"
 
 const ARGON2_OPTIONS = {
@@ -450,23 +451,46 @@ export class AdminService {
     return { data, pagination: paginationMeta(total, page, limit) }
   }
 
-  static async listStaff(filters: { status?: string; hospitalId?: string; page: number; limit: number }) {
-    const { status, hospitalId, page, limit } = filters
+  static async listStaff(filters: AdminStaffFilters) {
+    const { status, hospitalId, specialtyId, councilType, search, joinedFrom, joinedTo, page, limit } = filters
     const { skip, take } = paginate(page, limit)
 
     const where: Record<string, unknown> = {}
     if (status) where.status = status
     if (hospitalId) where.hospitalId = hospitalId
+    if (search || specialtyId || councilType) {
+      where.professional = {
+        ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
+        ...(specialtyId ? { specialties: { some: { specialtyId } } } : {}),
+        ...(councilType ? { councilType } : {}),
+      }
+    }
+    if (joinedFrom || joinedTo) {
+      where.joinedAt = {
+        ...(joinedFrom ? { gte: new Date(joinedFrom) } : {}),
+        ...(joinedTo ? { lte: new Date(joinedTo) } : {}),
+      }
+    }
 
     const [data, total] = await Promise.all([
       prisma.hospitalStaff.findMany({
         where,
         skip,
         take,
-        orderBy: { professional: { name: "asc" } },
+        orderBy: [{ professional: { name: "asc" } }, { hospital: { name: "asc" } }],
         include: {
-          hospital: { select: { id: true, name: true, city: true, state: true } },
-          professional: { select: { id: true, name: true, cpf: true, councilType: true, councilNumber: true } },
+          hospital: { select: { id: true, name: true, city: true, state: true, phone: true } },
+          professional: {
+            select: {
+              id: true,
+              name: true,
+              cpf: true,
+              phone: true,
+              councilType: true,
+              councilNumber: true,
+              specialties: { select: { specialty: { select: { id: true, name: true } } } },
+            },
+          },
         },
       }),
       prisma.hospitalStaff.count({ where }),

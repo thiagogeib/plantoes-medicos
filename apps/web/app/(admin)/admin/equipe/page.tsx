@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale'
 import { apiClient } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
@@ -23,7 +24,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { HospitalStaff, StaffStatus, ApiListResponse } from '@plantoes-medicos/types'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import type { HospitalStaff, StaffStatus, ApiListResponse, Specialty } from '@plantoes-medicos/types'
+
+interface StaffDetail extends HospitalStaff {
+  hospital?: HospitalStaff['hospital'] & { phone?: string }
+  professional?: HospitalStaff['professional'] & {
+    phone?: string
+    specialties?: { specialty: { id: string; name: string } }[]
+  }
+}
 
 const statusLabel: Record<StaffStatus, string> = {
   INVITED: 'Convite enviado',
@@ -44,19 +60,42 @@ const STATUS_OPTIONS: { value: StaffStatus | ''; label: string }[] = [
   { value: 'INACTIVE', label: statusLabel.INACTIVE },
 ]
 
+const COUNCIL_OPTIONS: { value: string; label: string }[] = [
+  { value: '__all__', label: 'Todos os conselhos' },
+  { value: 'CRM', label: 'CRM' },
+  { value: 'COREN', label: 'COREN' },
+]
+
 export default function AdminEquipePage() {
   const [statusFilter, setStatusFilter] = useState<StaffStatus | ''>('')
+  const [councilFilter, setCouncilFilter] = useState('')
+  const [specialtyFilter, setSpecialtyFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [joinedFrom, setJoinedFrom] = useState('')
   const [page, setPage] = useState(1)
-  const [staff, setStaff] = useState<HospitalStaff[]>([])
+  const [staff, setStaff] = useState<StaffDetail[]>([])
+  const [specialties, setSpecialties] = useState<Specialty[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [detailTarget, setDetailTarget] = useState<StaffDetail | null>(null)
+
+  useEffect(() => {
+    apiClient
+      .get<ApiListResponse<Specialty>>('/specialties')
+      .then((res) => setSpecialties(res.data))
+      .catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), limit: '15' })
       if (statusFilter) params.set('status', statusFilter)
-      const res = await apiClient.get<ApiListResponse<HospitalStaff>>(`/admin/staff?${params.toString()}`)
+      if (councilFilter) params.set('councilType', councilFilter)
+      if (specialtyFilter) params.set('specialtyId', specialtyFilter)
+      if (search) params.set('search', search)
+      if (joinedFrom) params.set('joinedFrom', joinedFrom)
+      const res = await apiClient.get<ApiListResponse<StaffDetail>>(`/admin/staff?${params.toString()}`)
       setStaff(res.data)
       setTotalPages(res.pagination.totalPages)
     } catch {
@@ -64,7 +103,7 @@ export default function AdminEquipePage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, page])
+  }, [statusFilter, councilFilter, specialtyFilter, search, joinedFrom, page])
 
   useEffect(() => {
     void load()
@@ -77,7 +116,13 @@ export default function AdminEquipePage() {
         <p className="text-slate-500 text-sm mt-0.5">Vínculos entre hospitais e profissionais na plataforma</p>
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Buscar por profissional"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          className="w-full sm:w-56"
+        />
         <Select
           value={statusFilter}
           onValueChange={(val) => {
@@ -85,7 +130,7 @@ export default function AdminEquipePage() {
             setPage(1)
           }}
         >
-          <SelectTrigger className="w-56">
+          <SelectTrigger className="w-full sm:w-52">
             <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>
           <SelectContent>
@@ -96,6 +141,40 @@ export default function AdminEquipePage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={specialtyFilter || '__all__'}
+          onValueChange={(val) => { setSpecialtyFilter(val === '__all__' ? '' : val); setPage(1) }}
+        >
+          <SelectTrigger className="w-full sm:w-52">
+            <SelectValue placeholder="Especialidade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas as especialidades</SelectItem>
+            {specialties.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={councilFilter || '__all__'}
+          onValueChange={(val) => { setCouncilFilter(val === '__all__' ? '' : val); setPage(1) }}
+        >
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Conselho" />
+          </SelectTrigger>
+          <SelectContent>
+            {COUNCIL_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          value={joinedFrom}
+          onChange={(e) => { setJoinedFrom(e.target.value); setPage(1) }}
+          className="w-full sm:w-44"
+          title="Vinculado desde"
+        />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -108,13 +187,14 @@ export default function AdminEquipePage() {
               <TableHead>Banco de horas</TableHead>
               <TableHead>Desde</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
+                  {Array.from({ length: 7 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -123,7 +203,7 @@ export default function AdminEquipePage() {
               ))
             ) : staff.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-400">
+                <TableCell colSpan={7} className="text-center py-10 text-slate-400">
                   Nenhum vínculo encontrado.
                 </TableCell>
               </TableRow>
@@ -147,6 +227,11 @@ export default function AdminEquipePage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[link.status]}>{statusLabel[link.status]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="outline" onClick={() => setDetailTarget(link)}>
+                      Ver detalhes
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -178,6 +263,51 @@ export default function AdminEquipePage() {
           </Button>
         </div>
       )}
+
+      <Dialog open={!!detailTarget} onOpenChange={(open) => !open && setDetailTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{detailTarget?.professional?.name}</DialogTitle>
+            <DialogDescription>Vínculo com {detailTarget?.hospital?.name}</DialogDescription>
+          </DialogHeader>
+          {detailTarget && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-slate-400">Conselho: </span>
+                <span className="font-medium">
+                  {detailTarget.professional?.councilType} {detailTarget.professional?.councilNumber}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">CPF: </span>
+                <span className="font-medium">{detailTarget.professional?.cpf ?? '—'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Telefone do profissional: </span>
+                <span className="font-medium">{detailTarget.professional?.phone ?? '—'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Especialidades: </span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {(detailTarget.professional?.specialties ?? []).map((s) => (
+                    <Badge key={s.specialty.id} variant="secondary">{s.specialty.name}</Badge>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400">Hospital: </span>
+                <span className="font-medium">
+                  {detailTarget.hospital?.name} — {detailTarget.hospital?.city}/{detailTarget.hospital?.state}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">Telefone do hospital: </span>
+                <span className="font-medium">{detailTarget.hospital?.phone ?? '—'}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

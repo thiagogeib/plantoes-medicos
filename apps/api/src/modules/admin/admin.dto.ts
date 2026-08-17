@@ -1,5 +1,13 @@
 import { z } from "zod"
-import { UserRole, UserStatus, ShiftStatus, SwapRequestStatus, LeaveRequestStatus, StaffStatus } from "@prisma/client"
+import {
+  UserRole,
+  UserStatus,
+  ShiftStatus,
+  SwapRequestStatus,
+  LeaveRequestStatus,
+  StaffStatus,
+  CouncilType,
+} from "@prisma/client"
 
 const passwordSchema = z
   .string()
@@ -110,6 +118,11 @@ export const adminLeaveFiltersSchema = z.object({
 export const adminStaffFiltersSchema = z.object({
   status: z.nativeEnum(StaffStatus).optional(),
   hospitalId: z.string().optional(),
+  specialtyId: z.string().optional(),
+  councilType: z.nativeEnum(CouncilType).optional(),
+  search: z.string().optional(),
+  joinedFrom: z.string().optional(),
+  joinedTo: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })

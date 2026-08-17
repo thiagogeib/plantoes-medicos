@@ -55,6 +55,7 @@ export default function HospitalPlantoesPage() {
   const [statusFilter, setStatusFilter] = useState<ShiftStatus | ''>('')
   const [specialtyId, setSpecialtyId] = useState('')
   const [compensationType, setCompensationType] = useState<CompensationType | ''>('')
+  const [requiredCouncilType, setRequiredCouncilType] = useState<'CRM' | 'COREN' | ''>('')
   const [date, setDate] = useState('')
   const [diaSemana, setDiaSemana] = useState<number | ''>('')
   const [hasCandidates, setHasCandidates] = useState<'true' | 'false' | ''>('')
@@ -62,7 +63,7 @@ export default function HospitalPlantoesPage() {
   const [specialties, setSpecialties] = useState<Specialty[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
-  const hasActiveFilters = !!(statusFilter || specialtyId || compensationType || date || diaSemana !== '' || hasCandidates)
+  const hasActiveFilters = !!(statusFilter || specialtyId || compensationType || requiredCouncilType || date || diaSemana !== '' || hasCandidates)
 
   useEffect(() => {
     apiClient
@@ -75,6 +76,7 @@ export default function HospitalPlantoesPage() {
     status: statusFilter,
     specialtyId: specialtyId || undefined,
     compensationType: compensationType || undefined,
+    requiredCouncilType: requiredCouncilType || undefined,
     date: date || undefined,
     diaSemana: diaSemana === '' ? undefined : diaSemana,
     hasCandidates: hasCandidates === '' ? undefined : hasCandidates === 'true',
@@ -260,6 +262,23 @@ export default function HospitalPlantoesPage() {
             <SelectItem value="false">Sem candidatos</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select
+          value={requiredCouncilType || '__all__'}
+          onValueChange={(val) => {
+            setRequiredCouncilType(val === '__all__' ? '' : (val as 'CRM' | 'COREN'))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Conselho" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os conselhos</SelectItem>
+            <SelectItem value="CRM">CRM</SelectItem>
+            <SelectItem value="COREN">COREN</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {viewMode === 'card' ? (
@@ -304,6 +323,7 @@ export default function HospitalPlantoesPage() {
                 <TableHead>Data</TableHead>
                 <TableHead>Horário</TableHead>
                 <TableHead>Vagas</TableHead>
+                <TableHead>Candidatos</TableHead>
                 <TableHead>Compensação</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead />
@@ -313,14 +333,14 @@ export default function HospitalPlantoesPage() {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 8 }).map((__, j) => (
+                    {Array.from({ length: 9 }).map((__, j) => (
                       <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : shifts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-slate-400 py-10">
+                  <TableCell colSpan={9} className="text-center text-slate-400 py-10">
                     Nenhum plantão encontrado com esse filtro.
                   </TableCell>
                 </TableRow>
@@ -334,6 +354,11 @@ export default function HospitalPlantoesPage() {
                     <TableCell>{formatDateOnly(shift.date)}</TableCell>
                     <TableCell>{shift.startTime}–{shift.endTime}</TableCell>
                     <TableCell>{shift.filledSlots}/{shift.slots}</TableCell>
+                    <TableCell>
+                      <Badge variant={(shift._count?.applications ?? 0) > 0 ? 'default' : 'secondary'}>
+                        {shift._count?.applications ?? 0}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{compensationLabels[shift.compensationType]}</TableCell>
                     <TableCell><PlantaoStatusBadge status={shift.status} /></TableCell>
                     <TableCell>

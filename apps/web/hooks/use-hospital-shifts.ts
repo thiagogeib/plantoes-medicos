@@ -9,6 +9,7 @@ interface UseHospitalShiftsOptions {
   status?: ShiftStatus | ''
   specialtyId?: string
   compensationType?: CompensationType | ''
+  requiredCouncilType?: 'CRM' | 'COREN' | ''
   date?: string
   diaSemana?: number
   hasCandidates?: boolean
@@ -20,6 +21,7 @@ export function useHospitalShifts({
   status,
   specialtyId,
   compensationType,
+  requiredCouncilType,
   date,
   diaSemana,
   hasCandidates,
@@ -40,6 +42,7 @@ export function useHospitalShifts({
       if (status) params.set('status', status)
       if (specialtyId) params.set('specialtyId', specialtyId)
       if (compensationType) params.set('compensationType', compensationType)
+      if (requiredCouncilType) params.set('requiredCouncilType', requiredCouncilType)
       if (date) {
         params.set('dateFrom', date)
         params.set('dateTo', date)
@@ -57,7 +60,7 @@ export function useHospitalShifts({
     } finally {
       setLoading(false)
     }
-  }, [status, specialtyId, compensationType, date, diaSemana, hasCandidates, page, limit])
+  }, [status, specialtyId, compensationType, requiredCouncilType, date, diaSemana, hasCandidates, page, limit])
 
   useEffect(() => {
     void load()
