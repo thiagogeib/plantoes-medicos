@@ -1,4 +1,4 @@
-import { ApplicationStatus, ShiftStatus, ChargeStatus, LeaveRequestStatus } from "@prisma/client"
+import { ApplicationStatus, ShiftStatus, ChargeStatus, LeaveRequestStatus, Prisma } from "@prisma/client"
 
 const DEFAULT_REJECTION_MESSAGE =
   "Agradecemos seu interesse, mas o plantão foi preenchido por outro profissional."
@@ -15,6 +15,74 @@ import { getPlatformFeeCents, createPaymentPreference } from "../../shared/servi
 import { computeShiftDurationMinutes } from "../../shared/helpers/duration"
 import { expireOverdueLeaveRequests } from "../leave-requests/leave-request-expiration.service"
 import type { CreateApplicationInput, UpdateStatusInput, ApplicationFilters } from "./application.dto"
+
+type Tx = Prisma.TransactionClient
+
+/**
+ * Marca a candidatura como ACCEPTED, preenche a vaga e — se ela esgotar as vagas do
+ * plantão — rejeita as demais candidaturas reservadas e marca a folga coberta (se houver).
+ * Compartilhado entre a aprovação direta do hospital e o webhook de pagamento.
+ */
+async function finalizeAcceptance(
+  tx: Tx,
+  application: { id: string; shiftId: string },
+  hospitalDefaultRejectionMessage: string | null | undefined
+) {
+  const updatedApplication = await tx.application.update({
+    where: { id: application.id },
+    data: { status: ApplicationStatus.ACCEPTED },
+  })
+
+  const updatedShift = await tx.shift.update({
+    where: { id: application.shiftId },
+    data: { filledSlots: { increment: 1 } },
+  })
+
+  let autoRejected: { professionalId: string; userId: string }[] = []
+
+  if (updatedShift.filledSlots >= updatedShift.slots) {
+    await tx.shift.update({
+      where: { id: application.shiftId },
+      data: { status: ShiftStatus.FILLED },
+    })
+
+    const stillReserved = await tx.application.findMany({
+      where: {
+        shiftId: application.shiftId,
+        status: { in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION] },
+        id: { not: application.id },
+      },
+      include: { professional: { select: { userId: true } } },
+    })
+
+    if (stillReserved.length > 0) {
+      const rejectionReason = hospitalDefaultRejectionMessage ?? DEFAULT_REJECTION_MESSAGE
+
+      await tx.application.updateMany({
+        where: { id: { in: stillReserved.map((a) => a.id) } },
+        data: { status: ApplicationStatus.REJECTED, rejectionReason },
+      })
+
+      autoRejected = stillReserved.map((a) => ({
+        professionalId: a.professionalId,
+        userId: a.professional.userId,
+      }))
+    }
+  }
+
+  const coveredLeave = await tx.leaveRequest.findFirst({
+    where: { shiftId: application.shiftId, status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE },
+    include: { professional: { select: { userId: true } } },
+  })
+  if (coveredLeave) {
+    await tx.leaveRequest.update({
+      where: { id: coveredLeave.id },
+      data: { status: LeaveRequestStatus.COVERED },
+    })
+  }
+
+  return { updatedApplication, autoRejected, coveredLeave }
+}
 
 export class ApplicationService {
   static async listShiftApplications(
@@ -250,7 +318,7 @@ export class ApplicationService {
     if (newStatus === ApplicationStatus.ACCEPTED) {
       if (application.status !== ApplicationStatus.PENDING) {
         throw new AppError(
-          "Esta candidatura já foi aprovada e aguarda confirmação do profissional",
+          "Esta candidatura já foi processada",
           422,
           "UNPROCESSABLE"
         )
@@ -268,14 +336,11 @@ export class ApplicationService {
         )
       }
 
-      // Aprovar a candidatura = aprovar o profissional como parte da equipe do hospital.
-      // A vaga só é efetivamente preenchida quando o profissional confirmar e pagar a taxa.
-      const updatedApplication = await prisma.$transaction(async (tx) => {
-        const updated = await tx.application.update({
-          where: { id },
-          data: { status: ApplicationStatus.PENDING_CONFIRMATION },
-        })
-
+      // A taxa de confirmação (Mercado Pago) está desativada por ora — aprovar a
+      // candidatura já preenche a vaga direto, sem passar por PENDING_CONFIRMATION.
+      // O fluxo de pagamento (confirmApplication/finalizeConfirmedApplication) continua
+      // no código, pronto para ser reativado quando o Mercado Pago estiver configurado.
+      const result = await prisma.$transaction(async (tx) => {
         await tx.hospitalStaff.upsert({
           where: {
             hospitalId_professionalId: {
@@ -293,18 +358,42 @@ export class ApplicationService {
           update: { status: "ACTIVE" },
         })
 
-        return updated
+        return finalizeAcceptance(
+          tx,
+          { id: application.id, shiftId: application.shiftId },
+          application.shift.hospital.defaultRejectionMessage
+        )
       })
 
       await notify({
         userId: application.professional.userId,
-        type: "APPLICATION_PENDING_CONFIRMATION",
-        title: "Você foi aprovado! Confirme sua vaga",
-        message: `O hospital aprovou você para "${application.shift.title}". Confirme e pague a taxa de confirmação para garantir a vaga.`,
+        type: "APPLICATION_ACCEPTED",
+        title: "Vaga confirmada",
+        message: `O hospital aprovou você para "${application.shift.title}" — a vaga já está garantida.`,
         link: `/profissional/candidaturas`,
       })
 
-      return updatedApplication
+      if (result.coveredLeave) {
+        await notify({
+          userId: result.coveredLeave.professional.userId,
+          type: "LEAVE_COVERED",
+          title: "Folga coberta",
+          message: `Sua folga em "${application.shift.title}" foi coberta por um substituto`,
+          link: "/profissional/folgas",
+        })
+      }
+
+      for (const rejectedApp of result.autoRejected) {
+        await notify({
+          userId: rejectedApp.userId,
+          type: "APPLICATION_REJECTED",
+          title: "Candidatura recusada",
+          message: `Sua candidatura para "${application.shift.title}" foi recusada`,
+          link: `/profissional/candidaturas`,
+        })
+      }
+
+      return result.updatedApplication
     }
 
     const updatedApplication = await prisma.application.update({
@@ -419,66 +508,13 @@ export class ApplicationService {
         data: { status: ChargeStatus.PAID, paidAt: new Date(), providerPaymentId },
       })
 
-      const updatedApplication = await tx.application.update({
-        where: { id: application.id },
-        data: { status: ApplicationStatus.ACCEPTED },
-      })
+      const finalized = await finalizeAcceptance(
+        tx,
+        { id: application.id, shiftId: application.shiftId },
+        application.shift.hospital.defaultRejectionMessage
+      )
 
-      const updatedShift = await tx.shift.update({
-        where: { id: application.shiftId },
-        data: { filledSlots: { increment: 1 } },
-      })
-
-      let rejected: { professionalId: string; userId: string }[] = []
-
-      if (updatedShift.filledSlots >= updatedShift.slots) {
-        await tx.shift.update({
-          where: { id: application.shiftId },
-          data: { status: ShiftStatus.FILLED },
-        })
-
-        const stillReserved = await tx.application.findMany({
-          where: {
-            shiftId: application.shiftId,
-            status: { in: [ApplicationStatus.PENDING, ApplicationStatus.PENDING_CONFIRMATION] },
-            id: { not: application.id },
-          },
-          include: { professional: { select: { userId: true } } },
-        })
-
-        if (stillReserved.length > 0) {
-          const rejectionReason =
-            application.shift.hospital.defaultRejectionMessage ?? DEFAULT_REJECTION_MESSAGE
-
-          await tx.application.updateMany({
-            where: { id: { in: stillReserved.map((a) => a.id) } },
-            data: { status: ApplicationStatus.REJECTED, rejectionReason },
-          })
-
-          rejected = stillReserved.map((a) => ({
-            professionalId: a.professionalId,
-            userId: a.professional.userId,
-          }))
-        }
-      }
-
-      const coveredLeave = await tx.leaveRequest.findFirst({
-        where: { shiftId: application.shiftId, status: LeaveRequestStatus.APPROVED_PENDING_COVERAGE },
-        include: { professional: { select: { userId: true } } },
-      })
-      if (coveredLeave) {
-        await tx.leaveRequest.update({
-          where: { id: coveredLeave.id },
-          data: { status: LeaveRequestStatus.COVERED },
-        })
-      }
-
-      return {
-        updatedApplication,
-        autoRejected: rejected,
-        hospitalUserId: application.shift.hospital.userId,
-        coveredLeave,
-      }
+      return { ...finalized, hospitalUserId: application.shift.hospital.userId }
     })
 
     await notify({
